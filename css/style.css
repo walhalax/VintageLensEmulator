@@ -122,13 +122,20 @@ h2 {
 }
 
 
-#preview-image {
+#preview-image { /* ★ これはもう使わないが念のため残す */
     display: block;
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
     will-change: filter;
 }
+#preview-canvas { /* ★ Canvas 用のスタイル */
+    display: none; /* 初期非表示 */
+    max-width: 100%;
+    max-height: 100%;
+    /* object-fit は Canvas には効かない */
+}
+
 
 #placeholder-text {
     position: absolute;
@@ -146,6 +153,7 @@ h2 {
     pointer-events: none;
     z-index: 10;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    background-origin: content-box; /* ★ 追加: 背景基準をコンテンツ領域に */
 }
 
 /* ルーペ調整コントロールのスタイル */
@@ -154,7 +162,6 @@ h2 {
     padding-top: 1rem;
     border-top: 1px solid #dee2e6;
     display: flex;
-    /* ★ デフォルトを横並び、折り返しありに変更 */
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -166,18 +173,15 @@ h2 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    /* width: 100%; */ /* 横並びのため削除 */
 }
 
 /* ドロワーコンテンツ (デフォルト非表示) */
 .loupe-drawer-content {
     display: flex;
-    /* ★ デフォルトを横並び、折り返しありに変更 */
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.8rem;
-    /* width: 100%; */ /* 横並びのため削除 */
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease-out;
@@ -185,27 +189,24 @@ h2 {
 
 /* ルーペON時にドロワーを開く */
 .loupe-controls.open .loupe-drawer-content {
-    max-height: 200px; /* 十分な高さを確保 */
+    max-height: 200px;
 }
 
 
 .loupe-controls .control-group {
     display: flex;
-    /* ★ デフォルトを横並び */
     flex-direction: row;
     align-items: center;
     gap: 0.2rem;
-    /* width: 100%; */ /* 横並びのため削除 */
 }
 
 .loupe-controls label {
     white-space: nowrap;
     color: #495057;
-    margin-bottom: 0; /* 維持 */
+    margin-bottom: 0;
 }
 
 .loupe-controls input[type="range"] {
-    /* width: 100%; */ /* 横並びのため削除 */
     max-width: none;
     cursor: pointer;
     height: 6px;
@@ -226,19 +227,19 @@ h2 {
     min-width: auto;
     text-align: left;
     font-family: monospace;
-    color: #495057; /* 維持 */
-    margin-top: 0; /* 横並びのため 0 に */
+    color: #495057;
+    margin-top: 0;
 }
 
-/* トグルスイッチのスタイル (サイズ調整) ★ */
+/* トグルスイッチのスタイル */
 .loupe-toggle-group label { margin-right: 0.25rem; }
-.switch { position: relative; display: inline-block; width: 40px; height: 20px; flex-shrink: 0; } /* ★ サイズ微調整 */
+.switch { position: relative; display: inline-block; width: 40px; height: 20px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
-.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; } /* つまみも小さく */
+.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; }
 input:checked + .slider { background-color: #0d6efd; }
-input:checked + .slider:before { transform: translateX(20px); } /* 移動距離調整 */
-.slider.round { border-radius: 20px; } /* 高さに合わせる */
+input:checked + .slider:before { transform: translateX(20px); }
+.slider.round { border-radius: 20px; }
 .slider.round:before { border-radius: 50%; }
 .toggle-label { min-width: 30px; text-align: left; color: #495057; font-weight: 500; }
 
@@ -253,7 +254,7 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    flex-wrap: nowrap; /* ★ 折り返さない */
+    flex-wrap: nowrap;
 }
 
 .control-group label {
@@ -261,12 +262,12 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
     font-size: 0.9rem;
     color: #495057;
     text-align: right;
-    flex-shrink: 0; /* ★ 縮まない */
+    flex-shrink: 0;
 }
 
 .control-group input[type="range"],
 .control-group select {
-    flex-grow: 1; /* ★ 伸びる */
+    flex-grow: 1;
     cursor: pointer;
     min-width: 80px;
     padding: 0.3rem 0.5rem;
@@ -292,7 +293,7 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
     font-family: monospace;
     font-size: 0.9rem;
     color: #495057;
-    flex-shrink: 0; /* ★ 縮まない */
+    flex-shrink: 0;
 }
 
 /* レンズ選択 */
@@ -301,11 +302,10 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
 .category-button.active { /* ... 省略 ... */ }
 .lens-list-container { /* ... 省略 ... */ }
 .lens-list {
-    display: flex; /* ★ 横並びを保証 */
+    display: flex;
     gap: 1rem;
     padding: 1rem;
     min-width: max-content;
-    /* overflow-x: auto; は親要素(.lens-list-container)に設定済み */
 }
 .lens-item { /* ... 省略 ... */ }
 .lens-item:hover { /* ... 省略 ... */ }
@@ -342,18 +342,16 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
          max-height: calc(85vh);
          aspect-ratio: auto;
     }
-    #preview-image {
+    #preview-canvas { /* ★ Canvas 用 */
         max-height: calc(85vh);
     }
-    /* ★ PC表示のスタイル調整 (flex-direction はデフォルトで row になったため削除) */
     .loupe-controls {
         gap: 1.5rem;
     }
     .loupe-drawer-content {
         gap: 1.5rem;
-        max-height: 100px; /* 横並び時の高さを確保 */
+        max-height: 100px;
         width: auto;
-        /* overflow, transition は維持 */
     }
 
     .loupe-controls .control-group {
@@ -367,7 +365,6 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
         min-width: 45px;
     }
 
-    /* ★ PC表示ではパラメータ調整コントロールも一行に */
     .control-group {
         flex-direction: row;
         align-items: center;
@@ -386,8 +383,7 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
 
 /* さらに小さい画面用の調整 (オプション) */
 @media (max-width: 991px) {
-    /* デフォルトスタイルがスマホ・タブレット用なので、上書きは最小限 */
     .control-group label { text-align: left; }
-    .value-display { text-align: left; } /* パラメータ調整の値表示 */
-    .loupe-controls .value-display { text-align: left; } /* ルーペの値表示 */
+    .value-display { text-align: left; }
+    .loupe-controls .value-display { text-align: left; }
 }
