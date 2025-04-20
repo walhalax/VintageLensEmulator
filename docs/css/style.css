@@ -1,0 +1,407 @@
+/* 基本的なリセット */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.6;
+    background-color: #f8f9fa;
+    color: #343a40;
+    min-height: 100vh;
+}
+
+/* 全体をラップするコンテナ */
+.container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+
+.app-header {
+    background-color: #343a40;
+    color: #fff;
+    padding: 0.8rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 3px solid #495057;
+}
+
+.app-header h1 {
+    font-size: 1.4rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+.controls-top {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.button {
+    padding: 0.4rem 0.9rem;
+    background-color: #6c757d;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.button:hover {
+    background-color: #495057;
+}
+
+.app-main {
+    flex: 1;
+    padding: 1.5rem 0;
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "preview"
+        "adjustment"
+        "selection"
+        "info";
+}
+
+/* 各セクションの基本的なスタイル */
+.image-preview-section,
+.controls-adjustment-section,
+.lens-selection-section,
+.lens-info-section {
+    background-color: #fff;
+    padding: 1.25rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    min-width: 0;
+}
+
+.image-preview-section { grid-area: preview; }
+.controls-adjustment-section { grid-area: adjustment; }
+.lens-selection-section { grid-area: selection; }
+.lens-info-section { grid-area: info; }
+
+h2 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.6rem;
+}
+
+/* 画像プレビュー */
+.image-preview-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #e9ecef;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: default;
+}
+.image-preview-container:not(.loupe-disabled) {
+    cursor: crosshair;
+}
+
+
+#preview-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    will-change: filter;
+}
+
+#placeholder-text {
+    position: absolute;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* ルーペのスタイル */
+#loupe {
+    position: absolute;
+    border: 4px solid rgba(0, 0, 0, 0.7);
+    border-radius: 50%;
+    background-repeat: no-repeat;
+    display: none;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ルーペ調整コントロールのスタイル */
+.loupe-controls {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    /* ★ デフォルトは縦並び */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.loupe-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+/* ドロワーコンテンツ (デフォルト非表示) */
+.loupe-drawer-content {
+    display: flex;
+    /* ★ デフォルトは縦並び */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+    width: 100%;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+/* ルーペON時にドロワーを開く */
+.loupe-controls.open .loupe-drawer-content {
+    max-height: 200px; /* 十分な高さを確保 */
+}
+
+
+.loupe-controls .control-group {
+    display: flex;
+    /* ★ デフォルトは縦並び */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    width: 100%;
+}
+
+.loupe-controls label {
+    white-space: nowrap;
+    color: #495057;
+    margin-bottom: 0;
+}
+
+.loupe-controls input[type="range"] {
+    width: 100%;
+    max-width: none;
+    cursor: pointer;
+    height: 6px;
+    background: #dee2e6;
+    border-radius: 3px;
+    appearance: none;
+    outline: none;
+}
+.loupe-controls input[type=range]::-webkit-slider-thumb {
+  appearance: none; width: 16px; height: 16px; background: #6c757d; border-radius: 50%; cursor: pointer;
+}
+.loupe-controls input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; background: #6c757d; border-radius: 50%; cursor: pointer; border: none;
+}
+
+
+.loupe-controls .value-display {
+    min-width: auto;
+    text-align: left;
+    font-family: monospace;
+    color: #495057;
+    margin-top: 0.2rem;
+}
+
+/* トグルスイッチのスタイル (サイズ調整) ★ */
+.loupe-toggle-group label { margin-right: 0.25rem; }
+.switch { position: relative; display: inline-block; width: 40px; height: 20px; flex-shrink: 0; } /* ★ サイズ微調整 */
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
+.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; } /* つまみも小さく */
+input:checked + .slider { background-color: #0d6efd; }
+input:checked + .slider:before { transform: translateX(20px); } /* 移動距離調整 */
+.slider.round { border-radius: 20px; } /* 高さに合わせる */
+.slider.round:before { border-radius: 50%; }
+.toggle-label { min-width: 30px; text-align: left; color: #495057; font-weight: 500; }
+
+
+/* パラメータ調整 */
+.adjustment-controls {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: nowrap; /* ★ 折り返さない */
+}
+
+.control-group label {
+    min-width: 85px;
+    font-size: 0.9rem;
+    color: #495057;
+    text-align: right;
+    flex-shrink: 0; /* ★ 縮まない */
+}
+
+.control-group input[type="range"],
+.control-group select {
+    flex-grow: 1; /* ★ 伸びる */
+    cursor: pointer;
+    min-width: 80px;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 0.9rem;
+}
+.control-group input[type="range"] {
+    height: 6px; background: #dee2e6; border-radius: 3px; appearance: none; outline: none; padding: 0;
+}
+.control-group input[type=range]::-webkit-slider-thumb {
+  appearance: none; width: 16px; height: 16px; background: #6c757d; border-radius: 50%; cursor: pointer;
+}
+.control-group input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; background: #6c757d; border-radius: 50%; cursor: pointer; border: none;
+}
+
+
+.value-display {
+    min-width: 55px;
+    text-align: right;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #495057;
+    flex-shrink: 0; /* ★ 縮まない */
+}
+
+/* レンズ選択 */
+.lens-categories { /* ... 省略 ... */ }
+.category-button { /* ... 省略 ... */ }
+.category-button.active { /* ... 省略 ... */ }
+.lens-list-container { /* ... 省略 ... */ }
+.lens-list {
+    display: flex; /* ★ 横並びを保証 */
+    gap: 1rem;
+    padding: 1rem;
+    min-width: max-content;
+    /* overflow-x: auto; は親要素(.lens-list-container)に設定済み */
+}
+.lens-item { /* ... 省略 ... */ }
+.lens-item:hover { /* ... 省略 ... */ }
+.lens-item.selected { /* ... 省略 ... */ }
+.lens-item img { /* ... 省略 ... */ }
+.lens-item p { /* ... 省略 ... */ }
+
+/* レンズ情報 */
+#lens-details { /* ... 省略 ... */ }
+#lens-details h3 { /* ... 省略 ... */ }
+#lens-details p { /* ... 省略 ... */ }
+
+
+/* レスポンシブデザイン: 横幅が広い場合 (例: 992px以上) */
+@media (min-width: 992px) {
+    .app-main {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        grid-template-rows: auto auto 1fr;
+        grid-template-areas:
+            "preview adjustment"
+            "selection adjustment"
+            "info info";
+        align-items: start;
+    }
+
+    .controls-adjustment-section {
+        position: sticky;
+        top: 1rem;
+        overflow-y: auto;
+        max-height: calc(100vh - 2rem);
+    }
+
+    .image-preview-container {
+         max-height: calc(85vh);
+         aspect-ratio: auto;
+    }
+    #preview-image {
+        max-height: calc(85vh);
+    }
+    /* ★ PC表示ではルーペコントロールを横並び */
+    .loupe-controls {
+        flex-direction: row; /* ★ 横並び */
+        align-items: center;
+        gap: 1.5rem;
+    }
+    .loupe-drawer-content {
+        flex-direction: row; /* ★ 横並び */
+        gap: 1.5rem;
+        max-height: 100px; /* 横並び時の高さを確保 */
+        width: auto;
+        /* overflow, transition は維持 */
+    }
+    .loupe-controls.open .loupe-drawer-content {
+        /* max-height は変更なし */
+    }
+
+    .loupe-controls .control-group {
+        flex-direction: row; /* ★ 横並び */
+        width: auto;
+    }
+     .loupe-controls label {
+        margin-bottom: 0;
+    }
+    .loupe-controls input[type="range"] {
+        width: 100px;
+    }
+     .loupe-controls .value-display {
+        text-align: right;
+        min-width: 45px;
+        margin-top: 0;
+    }
+
+    /* ★ PC表示ではパラメータ調整コントロールも一行に */
+    .control-group {
+        flex-direction: row;
+        align-items: center;
+        width: auto;
+    }
+     .control-group label {
+        text-align: right;
+        margin-bottom: 0;
+    }
+    .control-group input[type="range"], .control-group select {
+        width: auto;
+        flex-grow: 1;
+    }
+    .value-display {
+        text-align: right;
+        min-width: 55px;
+        margin-top: 0;
+    }
+
+}
+
+/* さらに小さい画面用の調整 (オプション) */
+@media (max-width: 991px) {
+    /* デフォルトスタイルがスマホ・タブレット用なので、上書きは最小限 */
+    .control-group label { text-align: left; }
+    .value-display { text-align: left; }
+    .loupe-controls .value-display { text-align: left; }
+}
