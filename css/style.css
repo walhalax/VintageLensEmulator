@@ -154,9 +154,10 @@ h2 {
     padding-top: 1rem;
     border-top: 1px solid #dee2e6;
     display: flex;
-    /* ★ デフォルトは縦並び */
-    flex-direction: column;
-    align-items: flex-start;
+    /* ★ デフォルトを横並び、折り返しありに変更 */
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.8rem;
     font-size: 0.9rem;
 }
@@ -165,17 +166,18 @@ h2 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    width: 100%;
+    /* width: 100%; */ /* 横並びのため削除 */
 }
 
 /* ドロワーコンテンツ (デフォルト非表示) */
 .loupe-drawer-content {
     display: flex;
-    /* ★ デフォルトは縦並び */
-    flex-direction: column;
-    align-items: flex-start;
+    /* ★ デフォルトを横並び、折り返しありに変更 */
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.8rem;
-    width: 100%;
+    /* width: 100%; */ /* 横並びのため削除 */
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease-out;
@@ -189,21 +191,21 @@ h2 {
 
 .loupe-controls .control-group {
     display: flex;
-    /* ★ デフォルトは縦並び */
-    flex-direction: column;
-    align-items: flex-start;
+    /* ★ デフォルトを横並び */
+    flex-direction: row;
+    align-items: center;
     gap: 0.2rem;
-    width: 100%;
+    /* width: 100%; */ /* 横並びのため削除 */
 }
 
 .loupe-controls label {
     white-space: nowrap;
     color: #495057;
-    margin-bottom: 0;
+    margin-bottom: 0; /* 維持 */
 }
 
 .loupe-controls input[type="range"] {
-    width: 100%;
+    /* width: 100%; */ /* 横並びのため削除 */
     max-width: none;
     cursor: pointer;
     height: 6px;
@@ -224,8 +226,8 @@ h2 {
     min-width: auto;
     text-align: left;
     font-family: monospace;
-    color: #495057;
-    margin-top: 0.2rem;
+    color: #495057; /* 維持 */
+    margin-top: 0; /* 横並びのため 0 に */
 }
 
 /* トグルスイッチのスタイル (サイズ調整) ★ */
@@ -343,29 +345,19 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
     #preview-image {
         max-height: calc(85vh);
     }
-    /* ★ PC表示ではルーペコントロールを横並び */
+    /* ★ PC表示のスタイル調整 (flex-direction はデフォルトで row になったため削除) */
     .loupe-controls {
-        flex-direction: row; /* ★ 横並び */
-        align-items: center;
         gap: 1.5rem;
     }
     .loupe-drawer-content {
-        flex-direction: row; /* ★ 横並び */
         gap: 1.5rem;
         max-height: 100px; /* 横並び時の高さを確保 */
         width: auto;
         /* overflow, transition は維持 */
     }
-    .loupe-controls.open .loupe-drawer-content {
-        /* max-height は変更なし */
-    }
 
     .loupe-controls .control-group {
-        flex-direction: row; /* ★ 横並び */
         width: auto;
-    }
-     .loupe-controls label {
-        margin-bottom: 0;
     }
     .loupe-controls input[type="range"] {
         width: 100px;
@@ -373,7 +365,6 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
      .loupe-controls .value-display {
         text-align: right;
         min-width: 45px;
-        margin-top: 0;
     }
 
     /* ★ PC表示ではパラメータ調整コントロールも一行に */
@@ -382,10 +373,6 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
         align-items: center;
         width: auto;
     }
-     .control-group label {
-        text-align: right;
-        margin-bottom: 0;
-    }
     .control-group input[type="range"], .control-group select {
         width: auto;
         flex-grow: 1;
@@ -393,7 +380,6 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
     .value-display {
         text-align: right;
         min-width: 55px;
-        margin-top: 0;
     }
 
 }
@@ -402,6 +388,6 @@ input:checked + .slider:before { transform: translateX(20px); } /* 移動距離�
 @media (max-width: 991px) {
     /* デフォルトスタイルがスマホ・タブレット用なので、上書きは最小限 */
     .control-group label { text-align: left; }
-    .value-display { text-align: left; }
-    .loupe-controls .value-display { text-align: left; }
+    .value-display { text-align: left; } /* パラメータ調整の値表示 */
+    .loupe-controls .value-display { text-align: left; } /* ルーペの値表示 */
 }

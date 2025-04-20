@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loupeToggle = document.getElementById('loupe-toggle');
     const loupeToggleLabelOff = document.querySelector('.toggle-label-off');
     const loupeToggleLabelOn = document.querySelector('.toggle-label-on');
-    // const loupeDrawerContent = document.querySelector('.loupe-drawer-content'); // .openクラスで制御
     const loupeZoomSlider = document.getElementById('loupe-zoom');
     const loupeZoomValueSpan = document.getElementById('loupe-zoom-value');
     const loupeSizeSlider = document.getElementById('loupe-size-factor');
@@ -25,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 状態管理 ---
     let currentImage = null;
     let currentLens = null;
-    let originalImageData = null;
+    let originalImageData = null; // Data URL
     let adjustments = {
         brightness: 100, contrast: 100, saturation: 100, sharpness: 0,
         exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
@@ -33,15 +32,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let isLoupeEnabled = false;
     let zoomFactor = 3;
     let loupeSizeFactor = 1.3;
-    let baseLoupeSize = 0;
-    let loupeSize = 0;
+    let baseLoupeSize = 0; // プレビュー画像の短辺を基準とする
+    let loupeSize = 0; // 実際のルーペの直径 (px)
     let loupeTimer = null;
     const LOUPE_DELAY = 1000; // 1秒
     let lastMousePos = { x: 0, y: 0 };
     let isMouseInsidePreview = false;
 
     // --- レンズデータ ---
-    const allLenses = [ /* ... レンズデータ省略 ... */
+    const allLenses = [
         { id: 'elmarit-21-f28', name: 'Elmarit-M 21mm f/2.8', category: 'wide', year: 1980, description: '超広角レンズ。ダイナミックな風景写真に。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lens_placeholder.png' },
@@ -62,35 +61,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- イベントリスナー ---
 
-    // 画像読み込み (修正) ★
+    // 画像読み込み
     imageInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                originalImageData = e.target.result;
+                originalImageData = e.target.result; // Data URL を保持
                 previewImage.onload = () => {
                     previewImage.style.display = 'block';
                     placeholderText.style.display = 'none';
                     loupe.style.backgroundImage = `url('${originalImageData}')`;
-                    // ★ requestAnimationFrame を使って、次の描画フレームで実行
                     requestAnimationFrame(() => {
                         calculateBaseLoupeSize();
                         applyLoupeSizeFactor();
-                        applyPreviewAdjustments(); // ★ プレビュー更新を確実に行う
+                        applyPreviewAdjustments();
                     });
                     previewImage.onload = null;
                 };
                 previewImage.onerror = () => {
-                    console.error('Image load error.'); // デバッグ用
+                    console.error('Image load error.');
                     alert('画像の表示に失敗しました。');
                     resetPreview();
                 };
                 previewImage.src = originalImageData;
-                currentImage = file;
+                currentImage = file; // File オブジェクトも保持 (必要なら)
             }
             reader.onerror = () => {
-                 console.error('File read error.'); // デバッグ用
+                 console.error('File read error.');
                  alert('ファイルの読み込み処理に失敗しました。');
                  resetPreview();
             };
@@ -102,25 +100,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 画像保存 (変更なし)
+    // 画像保存 ★ イベントリスナーは変更なし、downloadImageWithAdjustments を実装
     saveButton.addEventListener('click', downloadImageWithAdjustments);
 
-    // パラメータ調整 (スライダー) (修正) ★
+    // パラメータ調整 (スライダー)
     adjustmentControls.addEventListener('input', (event) => {
         const target = event.target;
         if (target.type === 'range') {
             const name = target.name;
             const value = target.value;
-            // console.log(`Adjusting ${name} to ${value}`); // デバッグ用
             if (adjustments.hasOwnProperty(name)) {
                 adjustments[name] = parseFloat(value);
             }
             updateAdjustmentValueDisplay(name, value);
-            applyPreviewAdjustments(); // ★ プレビュー更新
+            applyPreviewAdjustments();
         }
     });
 
-    // 色温度スライダーのイベントリスナー (変更なし)
+    // 色温度スライダーのイベントリスナー
     temperatureSlider.addEventListener('input', (event) => {
         adjustments.temperature = parseInt(event.target.value, 10);
         updateAdjustmentValueDisplay('temperature', event.target.value);
@@ -128,50 +125,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // レンズカテゴリフィルター (修正) ★
+    // レンズカテゴリフィルター
     lensCategoryButtons.forEach(button => {
         button.addEventListener('click', () => {
-            // console.log('Category button clicked:', button.dataset.category); // デバッグ用
             lensCategoryButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             const category = button.dataset.category;
-            displayLenses(category); // ★ レンズリスト再表示
+            displayLenses(category);
         });
     });
 
-    // レンズ選択 (修正) ★
+    // レンズ選択
     lensListContainer.addEventListener('click', (event) => {
         const lensItem = event.target.closest('.lens-item');
-        // console.log('Clicked inside lens list container. Target:', event.target, 'Closest item:', lensItem); // デバッグ用
         if (lensItem && lensItem.dataset.lensId) {
             const lensId = lensItem.dataset.lensId;
-            // console.log('Lens item clicked, ID:', lensId); // デバッグ用
             selectLens(lensId);
-            // 選択状態の更新
-            Array.from(lensListContainer.querySelectorAll('.lens-item')).forEach(item => {
-                item.classList.remove('selected');
-            });
-            lensItem.classList.add('selected');
         }
     });
 
-    // --- ルーペ機能イベントリスナー (修正) --- ★
+    // --- ルーペ機能イベントリスナー ---
     loupeToggle.addEventListener('change', (e) => {
         isLoupeEnabled = e.target.checked;
-        // console.log('Loupe enabled:', isLoupeEnabled); // デバッグ用
-        // ★ トグルラベルの表示切り替えを修正
         if (loupeToggleLabelOff && loupeToggleLabelOn) {
             loupeToggleLabelOff.style.fontWeight = !isLoupeEnabled ? 'bold' : 'normal';
             loupeToggleLabelOn.style.fontWeight = isLoupeEnabled ? 'bold' : 'normal';
         }
-        loupeControlsContainer.classList.toggle('open', isLoupeEnabled); // ドロワー開閉
+        loupeControlsContainer.classList.toggle('open', isLoupeEnabled);
 
         if (isLoupeEnabled) {
             previewContainer.classList.remove('loupe-disabled');
         } else {
             previewContainer.classList.add('loupe-disabled');
             clearTimeout(loupeTimer);
-            loupe.style.display = 'none'; // ★ OFF時に確実に非表示
+            loupe.style.display = 'none';
         }
     });
 
@@ -197,11 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
     previewContainer.addEventListener('mouseenter', (e) => {
         if (!isLoupeEnabled || previewImage.style.display === 'none') return;
         isMouseInsidePreview = true;
-        // console.log('Mouse entered preview'); // デバッグ用
     });
 
     previewContainer.addEventListener('mouseleave', () => {
-        // console.log('Mouse left preview'); // デバッグ用
         isMouseInsidePreview = false;
         clearTimeout(loupeTimer);
         loupe.style.display = 'none';
@@ -214,13 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentX = e.clientX - containerRect.left;
         const currentY = e.clientY - containerRect.top;
 
-        // コンテナ境界チェック
         if (currentX < 0 || currentX > containerRect.width || currentY < 0 || currentY > containerRect.height) {
             if (isMouseInsidePreview) {
                  isMouseInsidePreview = false;
                  clearTimeout(loupeTimer);
                  loupe.style.display = 'none';
-                 // console.log('Mouse moved out of bounds'); // デバッグ用
             }
             return;
         }
@@ -230,19 +213,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         lastMousePos = { x: currentX, y: currentY };
 
-        // ★ ルーペが表示されていない場合のみタイマーを開始
         if (loupe.style.display !== 'block') {
-            clearTimeout(loupeTimer); // 既存タイマー解除
-            // console.log('Setting loupe timer'); // デバッグ用
+            clearTimeout(loupeTimer);
             loupeTimer = setTimeout(() => {
-                // console.log('Loupe timer fired. isMouseInsidePreview:', isMouseInsidePreview); // デバッグ用
-                // タイマー発火時にマウスがまだプレビュー内にあれば表示
                 if (isMouseInsidePreview) {
                     showLoupe(lastMousePos);
                 }
             }, LOUPE_DELAY);
         } else {
-             // 表示されている場合は位置を即時更新
              updateLoupePosition(lastMousePos);
         }
     });
@@ -262,23 +240,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 関数 ---
 
-    // プレビューリセット関数 (変更なし)
-    function resetPreview() { /* ... */ }
+    // プレビューリセット関数
+    function resetPreview() {
+        previewImage.style.display = 'none';
+        previewImage.src = '#';
+        placeholderText.style.display = 'block';
+        loupe.style.display = 'none';
+        loupe.style.backgroundImage = 'none';
+        originalImageData = null;
+        currentImage = null;
+    }
 
-    // 調整値表示更新関数 (修正) ★
+    // 調整値表示更新関数
     function updateAdjustmentValueDisplay(name, value) {
         const slider = document.getElementById(name);
-        if (!slider) {
-            // console.warn(`Slider not found for ${name}`); // デバッグ用
-            return;
-        }
+        if (!slider) return;
         const valueDisplayContainer = slider.nextElementSibling;
-        if (!valueDisplayContainer || !valueDisplayContainer.classList.contains('value-display')) {
-            // console.warn(`Value display container not found for ${name}`); // デバッグ用
-            return;
-        }
+        if (!valueDisplayContainer || !valueDisplayContainer.classList.contains('value-display')) return;
 
-        // ★ 数値表示用のspan要素を特定 (IDまたはクラス)
         const valueSpan = valueDisplayContainer.querySelector(`#${name}-value`) || valueDisplayContainer.querySelector('.value-number');
         const unit = valueDisplayContainer.textContent.replace(/[\d.-]/g, '').trim();
 
@@ -293,52 +272,84 @@ document.addEventListener('DOMContentLoaded', () => {
             displayValue = parseFloat(value).toFixed(0);
         }
 
-        // ★ 特定したspan要素のテキストを更新
         if (valueSpan) {
             valueSpan.textContent = displayValue;
         } else {
-            // console.warn(`Value span not found inside container for ${name}. Updating container text.`); // デバッグ用
             valueDisplayContainer.textContent = `${displayValue}${unit || ''}`;
         }
     }
 
 
-    // ルーペ表示関数 (修正) ★
+    // ルーペ表示関数
     function showLoupe(mousePos) {
-        // console.log('Attempting to show loupe. isLoupeEnabled:', isLoupeEnabled, 'isMouseInsidePreview:', isMouseInsidePreview); // デバッグ用
         if (!mousePos || previewImage.style.display === 'none' || !isLoupeEnabled) return;
-        // ★ サイズ計算と適用をここで行う
         calculateBaseLoupeSize();
         applyLoupeSizeFactor();
         updateLoupeBackgroundSize();
         updateLoupePosition(mousePos);
-        // ★ isMouseInsidePreview を再確認
         if (isMouseInsidePreview) {
-            // console.log('Showing loupe'); // デバッグ用
-            loupe.style.display = 'block'; // ★ ここで表示
+            loupe.style.display = 'block';
         }
     }
 
-    // ルーペ位置更新関数 (変更なし)
-    function updateLoupePosition(mousePos) { /* ... */ }
+    // ルーペ位置更新関数
+    function updateLoupePosition(mousePos) {
+        if (!previewImage || previewImage.style.display === 'none' || !loupe) return;
 
-    // 基準ルーペサイズ計算関数 (変更なし)
-    function calculateBaseLoupeSize() { /* ... */ }
+        const imgRect = previewImage.getBoundingClientRect();
+        const containerRect = previewContainer.getBoundingClientRect();
 
-    // ルーペサイズ係数適用関数 (変更なし)
-    function applyLoupeSizeFactor() { /* ... */ }
+        const ratioX = mousePos.x / containerRect.width;
+        const ratioY = mousePos.y / containerRect.height;
 
-    // ルーペ背景サイズ更新関数 (変更なし)
-    function updateLoupeBackgroundSize() { /* ... */ }
+        const loupeLeft = mousePos.x - loupeSize / 2;
+        const loupeTop = mousePos.y - loupeSize / 2;
+
+        loupe.style.left = `${loupeLeft}px`;
+        loupe.style.top = `${loupeTop}px`;
+
+        const bgWidth = imgRect.width * zoomFactor;
+        const bgHeight = imgRect.height * zoomFactor;
+        const bgPosX = - (ratioX * bgWidth - loupeSize / 2);
+        const bgPosY = - (ratioY * bgHeight - loupeSize / 2);
+
+        loupe.style.backgroundPosition = `${bgPosX}px ${bgPosY}px`;
+    }
+
+    // 基準ルーペサイズ計算関数
+    function calculateBaseLoupeSize() {
+        if (!previewImage || previewImage.style.display === 'none') {
+            baseLoupeSize = 0;
+            return;
+        }
+        const imgRect = previewImage.getBoundingClientRect();
+        baseLoupeSize = Math.min(imgRect.width, imgRect.height) / 4;
+    }
+
+    // ルーペサイズ係数適用関数
+    function applyLoupeSizeFactor() {
+        if (!loupe) return;
+        loupeSize = baseLoupeSize * loupeSizeFactor;
+        loupe.style.width = `${loupeSize}px`;
+        loupe.style.height = `${loupeSize}px`;
+    }
+
+    // ルーペ背景サイズ更新関数
+    function updateLoupeBackgroundSize() {
+        if (!previewImage || previewImage.style.display === 'none' || !loupe) return;
+        const imgRect = previewImage.getBoundingClientRect();
+        const bgWidth = imgRect.width * zoomFactor;
+        const bgHeight = imgRect.height * zoomFactor;
+        loupe.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
+    }
 
 
-    // 調整をプレビュー画像に適用 (CSS Filterを使用) (修正) ★
+    // 調整をプレビュー画像に適用 (CSS Filterを使用)
     function applyPreviewAdjustments() {
         if (!previewImage || previewImage.style.display === 'none') return;
 
         let filters = [];
         const epsilon = 0.1;
-        // ★ デフォルト値と比較し、異なる場合のみフィルターを追加
         if (Math.abs(adjustments.brightness - 100) > epsilon) filters.push(`brightness(${Math.max(0, adjustments.brightness / 100)})`);
         if (Math.abs(adjustments.contrast - 100) > epsilon) filters.push(`contrast(${Math.max(0, adjustments.contrast / 100)})`);
         if (Math.abs(adjustments.saturation - 100) > epsilon) filters.push(`saturate(${Math.max(0, adjustments.saturation / 100)})`);
@@ -346,14 +357,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 他の効果はCSSプレビュー省略
 
         const filterValue = filters.length > 0 ? filters.join(' ') : 'none';
-        // console.log('Applying filter:', filterValue); // デバッグ用
         previewImage.style.filter = filterValue;
     }
 
-    // レンズリストを表示 (修正) ★
+    // レンズリストを表示
     function displayLenses(category = 'all') {
-        // console.log('Displaying lenses for category:', category); // デバッグ用
-        lensListContainer.innerHTML = ''; // リストをクリア
+        lensListContainer.innerHTML = '';
         const filteredLenses = (category === 'all')
             ? allLenses
             : allLenses.filter(lens => lens.category === category);
@@ -371,40 +380,194 @@ document.addEventListener('DOMContentLoaded', () => {
                 <img src="${lens.imageUrl || 'images/lens_placeholder.png'}" alt="${lens.name}" onerror="this.onerror=null;this.src='images/lens_placeholder.png';">
                 <p>${lens.name}</p>
             `;
+            if (currentLens && currentLens.id === lens.id) {
+                lensItem.classList.add('selected');
+            }
             lensListContainer.appendChild(lensItem);
         });
-        // console.log(`Displayed ${filteredLenses.length} lenses.`); // デバッグ用
+    }
 
-        // リスト表示後、選択中のレンズがあれば選択状態を復元
-        if (currentLens) {
-            const selectedItem = lensListContainer.querySelector(`.lens-item[data-lens-id="${currentLens.id}"]`);
-            if (selectedItem) {
-                selectedItem.classList.add('selected');
+    // レンズを選択し、詳細を表示
+    function selectLens(lensId) {
+        Array.from(lensListContainer.querySelectorAll('.lens-item.selected')).forEach(item => {
+            item.classList.remove('selected');
+        });
+
+        if (lensId) {
+            currentLens = allLenses.find(lens => lens.id === lensId);
+            if (currentLens) {
+                lensDetailsContainer.innerHTML = `
+                    <h3>${currentLens.name} (${currentLens.year})</h3>
+                    <p>${currentLens.description}</p>
+                    `;
+                const selectedItem = lensListContainer.querySelector(`.lens-item[data-lens-id="${lensId}"]`);
+                if (selectedItem) {
+                    selectedItem.classList.add('selected');
+                }
+                console.log("Selected lens:", currentLens.name);
+            } else {
+                 lensDetailsContainer.innerHTML = '<p>レンズ情報が見つかりません。</p>';
+                 currentLens = null;
             }
+        } else {
+            lensDetailsContainer.innerHTML = '<p>レンズを選択してください。</p>';
+            currentLens = null;
+            console.log("Lens selection cleared.");
         }
     }
 
-    // レンズを選択し、詳細を表示 (変更なし)
-    function selectLens(lensId) { /* ... */ }
+    // 画像保存処理 (Canvas使用版) ★実装追加 (基本枠組み)
+    function downloadImageWithAdjustments() {
+        if (!originalImageData) {
+            alert("画像を読み込んでください。");
+            return;
+        }
 
-    // 画像保存処理 (Canvas使用版) (変更なし)
-    function downloadImageWithAdjustments() { /* ... */ }
+        saveButton.disabled = true; // 処理中はボタンを無効化
+        saveButton.textContent = "処理中...";
 
-    // Canvas処理本体 (変更なし)
-    function processCanvas(img, canvas, ctx) { /* ... */ }
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
 
-    // --- RGB/HSL変換ヘルパー関数 --- (変更なし)
-    function rgbToHsl(r, g, b) { /* ... */ }
-    function hslToRgb(h, s, l) { /* ... */ }
+            try {
+                // Canvas処理を実行
+                processCanvas(img, canvas, ctx);
 
-    // --- ケルビン -> RGB 変換 (近似) --- (変更なし)
-    function kelvinToRgb(kelvin) { /* ... */ }
+                // Canvasの内容をBlobとして取得 (PNG形式)
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // ダウンロードリンクを作成してクリック
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        const filename = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") + "_adjusted.png" : "adjusted_image.png";
+                        link.download = filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(link.href); // オブジェクトURLを解放
+                        console.log("Image downloaded successfully.");
+                    } else {
+                        alert("画像のBlob生成に失敗しました。");
+                        console.error("Failed to create blob from canvas.");
+                    }
+                    // ボタンの状態を元に戻す
+                    saveButton.disabled = false;
+                    saveButton.textContent = "画像保存";
+                }, 'image/png'); // PNG形式で保存
+
+            } catch (error) {
+                console.error("Error processing or downloading image:", error);
+                alert("画像の処理またはダウンロード中にエラーが発生しました。");
+                saveButton.disabled = false;
+                saveButton.textContent = "画像保存";
+            }
+        };
+        img.onerror = () => {
+            console.error("Failed to load image for processing.");
+            alert("画像処理のために画像の読み込みに失敗しました。");
+            saveButton.disabled = false;
+            saveButton.textContent = "画像保存";
+        };
+        img.src = originalImageData; // Data URL をソースに設定
+    }
+
+    // Canvas処理本体 ★実装追加 (基本枠組み)
+    function processCanvas(img, canvas, ctx) {
+        // Canvasサイズを画像の実サイズに合わせる
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+
+        // 画像をCanvasに描画
+        ctx.drawImage(img, 0, 0);
+
+        // ピクセルデータを取得
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // ピクセルデータに調整を適用
+        applyPixelAdjustments(data, canvas.width, canvas.height, adjustments);
+
+        // 調整後のピクセルデータをCanvasに戻す
+        ctx.putImageData(imageData, 0, 0);
+
+        console.log("Canvas processed.");
+    }
+
+    // --- RGB/HSL変換ヘルパー関数 --- (未実装)
+    function rgbToHsl(r, g, b) {
+        // TODO: 実装する (変換ロジック)
+        console.warn("rgbToHsl not implemented");
+        return { h: 0, s: 0, l: (r + g + b) / (3 * 255) }; // 仮: グレースケール輝度
+    }
+    function hslToRgb(h, s, l) {
+        // TODO: 実装する (変換ロジック)
+        console.warn("hslToRgb not implemented");
+        const val = Math.round(l * 255);
+        return { r: val, g: val, b: val }; // 仮: グレースケール
+    }
+
+    // --- ケルビン -> RGB 変換 (近似) --- (未実装)
+    function kelvinToRgb(kelvin) {
+        // TODO: 実装する (近似式など)
+        console.warn("kelvinToRgb not implemented");
+        return { r: 255, g: 255, b: 255 }; // 仮: 白
+    }
 
 
-    // ピクセルデータに調整を適用する関数 (変更なし)
-    function applyPixelAdjustments(data, width, height, adj) { /* ... */ }
+    // ピクセルデータに調整を適用する関数 ★実装追加 (簡易版: 明るさ、コントラスト、彩度のみ)
+    function applyPixelAdjustments(data, width, height, adj) {
+        console.log("Applying pixel adjustments (simple version)...", adj);
+        const brightnessFactor = adj.brightness / 100;
+        const contrastFactor = adj.contrast / 100; // コントラストは中央値127からの差を増幅
+        const saturationFactor = adj.saturation / 100;
 
-    // --- 初期化 --- (修正) ★
+        // 他の調整は未実装のため警告
+        if (adj.sharpness !== 0) console.warn("Sharpness adjustment not implemented.");
+        if (adj.exposure !== 0) console.warn("Exposure adjustment not implemented.");
+        if (adj.grain !== 0) console.warn("Grain adjustment not implemented.");
+        if (adj.temperature !== 6500) console.warn("Temperature adjustment not implemented.");
+        if (adj.tint !== 0) console.warn("Tint adjustment not implemented.");
+        if (adj.mist !== 0) console.warn("Mist adjustment not implemented.");
+
+
+        for (let i = 0; i < data.length; i += 4) {
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+
+            // --- 明るさ ---
+            r *= brightnessFactor;
+            g *= brightnessFactor;
+            b *= brightnessFactor;
+
+            // --- コントラスト ---
+            // 中央値(127)からの差を調整
+            r = 127 + (r - 127) * contrastFactor;
+            g = 127 + (g - 127) * contrastFactor;
+            b = 127 + (b - 127) * contrastFactor;
+
+            // --- 彩度 (簡易版: グレースケールとの混合) ---
+            // HSL変換を使うのが望ましいが、簡易的に実装
+            // グレースケール値を計算 (輝度)
+            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+            // 元の色とグレースケールを彩度係数で混合
+            r = gray + (r - gray) * saturationFactor;
+            g = gray + (g - gray) * saturationFactor;
+            b = gray + (b - gray) * saturationFactor;
+
+
+            // 値を 0-255 の範囲にクリッピング
+            data[i] = Math.max(0, Math.min(255, r));
+            data[i + 1] = Math.max(0, Math.min(255, g));
+            data[i + 2] = Math.max(0, Math.min(255, b));
+            // Alpha (data[i + 3]) は変更しない
+        }
+        console.log("Simple pixel adjustments applied.");
+    }
+
+    // --- 初期化 ---
     function init() {
         // スライダー/トグルの初期値をadjustmentsオブジェクトとUIに反映
         Object.keys(adjustments).forEach(key => {
@@ -433,8 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 初期レンズリスト表示
         displayLenses();
-        selectLens(null);
-        // console.log('Initialization complete.'); // デバッグ用
+        selectLens(null); // 初期状態ではレンズ未選択
     }
 
     init();
