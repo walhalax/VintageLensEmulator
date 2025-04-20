@@ -21,20 +21,20 @@
             <section class="image-preview-section">
                 <h2>プレビュー画像</h2>
                 <div class="image-preview-container">
-                    <img id="preview-image" src="#" alt="画像プレビュー" style="display: none;">
+                    <!-- ★ img を canvas に変更 -->
+                    <canvas id="preview-canvas" style="display: none; max-width: 100%; max-height: 100%; object-fit: contain;"></canvas>
                     <p id="placeholder-text">画像を読み込んでください</p>
                     <div id="loupe"></div>
                 </div>
                 <div class="loupe-controls">
-                    <!-- ★ トグルスイッチの構造変更 -->
                     <div class="loupe-toggle-wrapper control-group">
                         <label for="loupe-toggle">ルーペ:</label>
-                        <span class="toggle-label toggle-label-off">OFF</span> <!-- OFFラベルを先 -->
+                        <span class="toggle-label toggle-label-off">OFF</span>
                         <label class="switch">
                             <input type="checkbox" id="loupe-toggle">
                             <span class="slider round"></span>
                         </label>
-                        <span class="toggle-label toggle-label-on">ON</span> <!-- ONラベルを後 -->
+                        <span class="toggle-label toggle-label-on">ON</span>
                     </div>
                     <div class="loupe-drawer-content">
                         <div class="control-group">
