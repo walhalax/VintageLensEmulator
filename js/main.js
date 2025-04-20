@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveButton = document.getElementById('save-button');
     const previewContainer = document.querySelector('.image-preview-container');
     const previewCanvas = document.getElementById('preview-canvas');
-    const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true }); // Read frequently hint
+    const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
     const placeholderText = document.getElementById('placeholder-text');
     const loupe = document.getElementById('loupe');
     const loupeControlsContainer = document.querySelector('.loupe-controls');
@@ -31,8 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 状態管理 ---
     let currentImage = null;
     let currentLens = null;
-    let originalImageData = null;
-    let originalImageBitmap = null;
+    let originalImageData = null; // Data URL
+    let originalImageObject = null; // ★ Image オブジェクトを保持するように変更
     let previewScale = 1.0;
     let previewOffsetX = 0;
     let previewOffsetY = 0;
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- イベントリスナー ---
 
-    // 画像読み込み ★ アスペクト比維持の計算を修正
+    // 画像読み込み ★ ImageBitmap の使用をやめ、Image オブジェクトを直接使う
     imageInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -82,45 +82,44 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (e) => {
                 originalImageData = e.target.result;
                 currentImage = file;
+                console.log("FileReader loaded."); // Debug
 
                 const img = new Image();
                 img.onload = () => {
-                    createImageBitmap(img).then(bitmap => {
-                        originalImageBitmap = bitmap;
+                    console.log("Image object loaded."); // Debug
+                    originalImageObject = img; // ★ Image オブジェクトを保持
 
-                        // --- プレビュー解像度計算 (アスペクト比維持) ---
-                        let scaleX = 1.0;
-                        let scaleY = 1.0;
-                        if (img.naturalWidth > MAX_PREVIEW_WIDTH) {
-                            scaleX = MAX_PREVIEW_WIDTH / img.naturalWidth;
-                        }
-                        if (img.naturalHeight > MAX_PREVIEW_HEIGHT) {
-                            scaleY = MAX_PREVIEW_HEIGHT / img.naturalHeight;
-                        }
-                        previewScale = Math.min(scaleX, scaleY); // より小さいスケールを採用
+                    // --- プレビュー解像度計算 ---
+                    let scaleX = 1.0;
+                    let scaleY = 1.0;
+                    if (img.naturalWidth > MAX_PREVIEW_WIDTH) {
+                        scaleX = MAX_PREVIEW_WIDTH / img.naturalWidth;
+                    }
+                    if (img.naturalHeight > MAX_PREVIEW_HEIGHT) {
+                        scaleY = MAX_PREVIEW_HEIGHT / img.naturalHeight;
+                    }
+                    previewScale = Math.min(scaleX, scaleY);
 
-                        const previewWidth = Math.round(img.naturalWidth * previewScale);
-                        const previewHeight = Math.round(img.naturalHeight * previewScale);
-                        // --- ここまで ---
+                    const previewWidth = Math.round(img.naturalWidth * previewScale);
+                    const previewHeight = Math.round(img.naturalHeight * previewScale);
+                    // --- ここまで ---
 
-                        previewCanvas.width = previewWidth;
-                        previewCanvas.height = previewHeight;
-                        previewCtx.drawImage(originalImageBitmap, 0, 0, previewWidth, previewHeight);
+                    previewCanvas.width = previewWidth;
+                    previewCanvas.height = previewHeight;
+                    // ★ Image オブジェクトを直接描画
+                    previewCtx.drawImage(originalImageObject, 0, 0, previewWidth, previewHeight);
+                    console.log("Initial image drawn to canvas."); // Debug
 
-                        previewCanvas.style.display = 'block';
-                        placeholderText.style.display = 'none';
-                        loupe.style.backgroundImage = `url('${originalImageData}')`;
+                    previewCanvas.style.display = 'block';
+                    placeholderText.style.display = 'none';
+                    loupe.style.backgroundImage = `url('${originalImageData}')`;
 
-                        requestAnimationFrame(() => {
-                            updatePreviewDisplayInfo();
-                            calculateBaseLoupeSize();
-                            applyLoupeSizeFactor();
-                            applyPreviewAdjustments();
-                        });
-                    }).catch(err => {
-                         console.error('Error creating ImageBitmap:', err);
-                         alert('画像の処理準備に失敗しました。');
-                         resetPreview();
+                    requestAnimationFrame(() => {
+                        console.log("Requesting initial updates after image load."); // Debug
+                        updatePreviewDisplayInfo();
+                        calculateBaseLoupeSize();
+                        applyLoupeSizeFactor();
+                        applyPreviewAdjustments();
                     });
                 };
                 img.onerror = () => {
@@ -128,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('画像の表示準備に失敗しました。');
                     resetPreview();
                 };
-                img.src = originalImageData;
+                img.src = originalImageData; // これで img.onload がトリガーされる
             }
             reader.onerror = () => {
                  console.error('File read error.');
@@ -242,7 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentX = e.clientX - containerRect.left;
         const currentY = e.clientY - containerRect.top;
 
-        // マウスが画像表示領域内にあるかチェック
         if (currentX < previewOffsetX || currentX > previewOffsetX + previewDisplayWidth ||
             currentY < previewOffsetY || currentY > previewOffsetY + previewDisplayHeight) {
             if (isMouseInsidePreview) {
@@ -252,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        // 領域内に入った場合、または既に領域内にいる場合
         if (!isMouseInsidePreview) {
             isMouseInsidePreview = true;
         }
@@ -262,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loupe.style.display !== 'block') {
             clearTimeout(loupeTimer);
             loupeTimer = setTimeout(() => {
-                // タイマー発火時にもう一度領域内かチェック (念のため)
                 if (isMouseInsidePreview) {
                     showLoupe(lastMousePos);
                 }
@@ -296,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.display = 'none';
         loupe.style.backgroundImage = 'none';
         originalImageData = null;
-        originalImageBitmap = null;
+        originalImageObject = null; // ★ Image オブジェクトもクリア
         currentImage = null;
         previewScale = 1.0;
         previewOffsetX = 0;
@@ -361,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // プレビュー更新リクエスト (デバウンス)
     function requestPreviewUpdate() {
-        if (!originalImageBitmap) return;
+        if (!originalImageObject) return; // ★ Image オブジェクトをチェック
         clearTimeout(previewUpdateTimeout);
         previewUpdateTimeout = setTimeout(() => {
             applyPreviewAdjustments();
@@ -369,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ルーペ表示関数 ★ isMouseInsidePreview チェック削除
+    // ルーペ表示関数
     function showLoupe(mousePos) {
         if (!mousePos || previewCanvas.style.display === 'none' || !isLoupeEnabled) return;
         updatePreviewDisplayInfo();
@@ -377,14 +373,12 @@ document.addEventListener('DOMContentLoaded', () => {
         applyLoupeSizeFactor();
         updateLoupeBackgroundSize();
         updateLoupePosition(mousePos);
-        // if (isMouseInsidePreview) { // ★ チェック削除
-            loupe.style.display = 'block';
-        // }
+        loupe.style.display = 'block';
     }
 
     // ルーペ位置更新関数
     function updateLoupePosition(mousePos) {
-        if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageBitmap) return;
+        if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageObject) return; // ★ Image オブジェクトをチェック
 
         const imgMouseX = mousePos.x - previewOffsetX;
         const imgMouseY = mousePos.y - previewOffsetY;
@@ -397,8 +391,9 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.left = `${loupeLeft}px`;
         loupe.style.top = `${loupeTop}px`;
 
-        const bgWidth = originalImageBitmap.width * zoomFactor;
-        const bgHeight = originalImageBitmap.height * zoomFactor;
+        // ★ 背景画像の位置計算は元画像の naturalWidth/Height を使う
+        const bgWidth = originalImageObject.naturalWidth * zoomFactor;
+        const bgHeight = originalImageObject.naturalHeight * zoomFactor;
         const bgPosX = - (imgRatioX * bgWidth - loupeSize / 2);
         const bgPosY = - (imgRatioY * bgHeight - loupeSize / 2);
         loupe.style.backgroundPosition = `${bgPosX}px ${bgPosY}px`;
@@ -423,31 +418,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ルーペ背景サイズ更新関数
     function updateLoupeBackgroundSize() {
-        if (!originalImageBitmap || !loupe) return;
-        const bgWidth = originalImageBitmap.width * zoomFactor;
-        const bgHeight = originalImageBitmap.height * zoomFactor;
+        if (!originalImageObject || !loupe) return; // ★ Image オブジェクトをチェック
+        // ★ 背景サイズは元画像の naturalWidth/Height を使う
+        const bgWidth = originalImageObject.naturalWidth * zoomFactor;
+        const bgHeight = originalImageObject.naturalHeight * zoomFactor;
         loupe.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
     }
 
 
     // 調整をプレビュー画像に適用 (Canvas ベース)
     function applyPreviewAdjustments() {
-        if (!originalImageBitmap || !previewCtx) return;
+        if (!originalImageObject || !previewCtx) return; // ★ Image オブジェクトをチェック
 
         console.log("Applying adjustments to preview canvas...");
 
+        // 1. 元画像をCanvasに描画 (縮小して描画)
         previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-        previewCtx.drawImage(originalImageBitmap, 0, 0, previewCanvas.width, previewCanvas.height);
+        previewCtx.drawImage(originalImageObject, 0, 0, previewCanvas.width, previewCanvas.height);
 
+        // 2. ピクセルデータを取得
         const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
         const data = imageData.data;
 
+        // 3. ピクセルデータに調整を適用
         try {
             applyPixelAdjustments(data, previewCanvas.width, previewCanvas.height, adjustments);
         } catch (error) {
             console.error("Error applying pixel adjustments to preview:", error);
         }
 
+        // 4. 調整後のピクセルデータをCanvasに戻す
         previewCtx.putImageData(imageData, 0, 0);
         console.log("Preview canvas updated.");
     }
@@ -512,8 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 画像保存処理 (Canvas使用版)
     function downloadImageWithAdjustments() {
-        // ... (変更なし) ...
-        if (!originalImageBitmap) {
+        if (!originalImageObject) { // ★ Image オブジェクトをチェック
             alert("画像を読み込んでください。");
             return;
         }
@@ -525,7 +524,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveCtx = saveCanvas.getContext('2d');
 
         try {
-            processCanvas(originalImageBitmap, saveCanvas, saveCtx);
+            // ★ Image オブジェクトを渡す
+            processCanvas(originalImageObject, saveCanvas, saveCtx);
 
             saveCanvas.toBlob((blob) => {
                 if (blob) {
@@ -554,15 +554,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Canvas処理本体
+    // Canvas処理本体 (Image or ImageBitmap を受け取るように変更)
     function processCanvas(imgSource, canvas, ctx) {
-        // ... (変更なし) ...
-        canvas.width = imgSource.width;
-        canvas.height = imgSource.height;
+        // ★ naturalWidth/Height を使う
+        canvas.width = imgSource.naturalWidth;
+        canvas.height = imgSource.naturalHeight;
+
         ctx.drawImage(imgSource, 0, 0);
+
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
+
         applyPixelAdjustments(data, canvas.width, canvas.height, adjustments);
+
         ctx.putImageData(imageData, 0, 0);
         console.log("Canvas processed.");
     }
