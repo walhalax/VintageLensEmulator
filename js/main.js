@@ -52,16 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let isMouseInsidePreview = false;
     let previewUpdateTimeout = null;
 
-    // --- レンズデータ ★ imageUrl のパスを修正 ---
+    // --- レンズデータ ---
     const allLenses = [
-        { id: 'elmarit-21-f28', name: 'Elmarit-M 21mm f/2.8', category: 'wide', year: 1980, description: '超広角レンズ。ダイナミックな風景写真に。', imageUrl: 'images/lenses/Elmarit-M_21mm_f2.8.jpg' }, // パス修正
-        { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lenses/Summicron-M_28mm_f2_ASPH.jpeg' }, // パス修正
-        { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lenses/Elmarit-M_28mm_F2.8_4th.jpg' }, // パス修正
-        { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lenses/Summaron_35mm_f2.8.jpg' }, // パス修正
-        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lenses/Summicron-M_35mm_f2_4th.jpg' }, // パス修正
-        { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lenses/Summilux_35mm_f1.4.jpg' }, // パス修正
-        { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Fixed.webp' }, // パス修正
-        // --- 以下は画像がないため placeholder のまま ---
+        { id: 'elmarit-21-f28', name: 'Elmarit-M 21mm f/2.8', category: 'wide', year: 1980, description: '超広角レンズ。ダイナミックな風景写真に。', imageUrl: 'images/lenses/Elmarit-M_21mm_f2.8.jpg' },
+        { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lenses/Summicron-M_28mm_f2_ASPH.jpeg' },
+        { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lenses/Elmarit-M_28mm_F2.8_4th.jpg' },
+        { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lenses/Summaron_35mm_f2.8.jpg' },
+        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lenses/Summicron-M_35mm_f2_4th.jpg' },
+        { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lenses/Summilux_35mm_f1.4.jpg' },
+        { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Fixed.webp' },
         { id: 'summicron-50-f2-dr', name: 'Summicron 50mm f/2 (DR)', category: 'standard', year: 1956, description: '近接撮影可能なDual Rangeモデル。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summicron-50-f2-v5', name: 'Summicron 50mm f/2 (V)', category: 'standard', year: 1979, description: '現代的な性能を持つ標準レンズの決定版。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summilux-50-f14-v2', name: 'Summilux-M 50mm f/1.4 (E46, Pre-ASPH)', category: 'standard', year: 1961, description: '柔らかな描写と美しいボケが特徴。', imageUrl: 'images/lens_placeholder.png' },
@@ -376,27 +375,36 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.display = 'block';
     }
 
-    // ルーペ位置更新関数
-    function updateLoupePosition(mousePos) {
+    // ルーペ位置更新関数 ★ 修正: Canvas ローカル座標基準に変更
+    function updateLoupePosition(mousePos) { // mousePos はコンテナ座標 {x, y}
         if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageObject) return;
 
-        const imgMouseX = mousePos.x - previewOffsetX;
-        const imgMouseY = mousePos.y - previewOffsetY;
+        const canvasRect = previewCanvas.getBoundingClientRect();
+        const containerRect = previewContainer.getBoundingClientRect(); // コンテナの位置取得
 
-        const imgRatioX = Math.max(0, Math.min(1, imgMouseX / previewDisplayWidth));
-        const imgRatioY = Math.max(0, Math.min(1, imgMouseY / previewDisplayHeight));
+        // マウスのコンテナ座標をCanvas要素のローカル座標に変換
+        const canvasMouseX = mousePos.x - (canvasRect.left - containerRect.left);
+        const canvasMouseY = mousePos.y - (canvasRect.top - containerRect.top);
 
+        // Canvasの表示サイズ(canvasRect)に対する割合 (0-1)
+        const canvasRatioX = Math.max(0, Math.min(1, canvasMouseX / canvasRect.width));
+        const canvasRatioY = Math.max(0, Math.min(1, canvasMouseY / canvasRect.height));
+
+        // ルーペ要素の位置 (コンテナ座標基準 - これは変更なし)
         const loupeLeft = mousePos.x - loupeSize / 2;
         const loupeTop = mousePos.y - loupeSize / 2;
         loupe.style.left = `${loupeLeft}px`;
         loupe.style.top = `${loupeTop}px`;
 
+        // 背景画像の位置計算 (元画像のサイズ基準)
         const bgWidth = originalImageObject.naturalWidth * zoomFactor;
         const bgHeight = originalImageObject.naturalHeight * zoomFactor;
-        const bgPosX = - (imgRatioX * bgWidth - loupeSize / 2);
-        const bgPosY = - (imgRatioY * bgHeight - loupeSize / 2);
+        // ★ Canvasの割合を使用
+        const bgPosX = - (canvasRatioX * bgWidth - loupeSize / 2);
+        const bgPosY = - (canvasRatioY * bgHeight - loupeSize / 2);
         loupe.style.backgroundPosition = `${bgPosX}px ${bgPosY}px`;
     }
+
 
     // 基準ルーペサイズ計算関数
     function calculateBaseLoupeSize() {
@@ -648,9 +656,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ピクセルデータに調整を適用する関数
+    // ピクセルデータに調整を適用する関数 ★ 粒状性、シャープネス修正
     function applyPixelAdjustments(data, width, height, adj) {
-        // ... (実装済み、ミストは全体適用) ...
         console.log("Applying pixel adjustments...", adj);
         const brightnessFactor = adj.brightness / 100;
         const contrastFactor = adj.contrast / 100;
@@ -667,13 +674,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const tempFactorG = targetRgb.g / baseRgb.g;
         const tempFactorB = targetRgb.b / baseRgb.b;
 
-        if (sharpnessAmount > 0) console.warn("Sharpness adjustment not fully implemented.");
+        // シャープネス処理用に元のデータをコピー (シャープネスが有効な場合のみ)
+        const srcData = sharpnessAmount > 0 ? new Uint8ClampedArray(data) : null;
+        const step = 4;
+        const widthStep = width * step;
 
-        for (let i = 0; i < data.length; i += 4) {
+        for (let i = 0; i < data.length; i += step) {
             let r = data[i];
             let g = data[i + 1];
             let b = data[i + 2];
 
+            // --- シャープネス (簡易版) ---
+            if (sharpnessAmount > 0 && srcData) {
+                const x = (i / step) % width;
+                const y = Math.floor((i / step) / width);
+
+                if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+                    const centerIndex = i;
+                    const topIndex = i - widthStep;
+                    const bottomIndex = i + widthStep;
+                    const leftIndex = i - step;
+                    const rightIndex = i + step;
+
+                    for (let j = 0; j < 3; j++) { // R, G, B
+                        const centerVal = srcData[centerIndex + j];
+                        const topVal = srcData[topIndex + j];
+                        const bottomVal = srcData[bottomIndex + j];
+                        const leftVal = srcData[leftIndex + j];
+                        const rightVal = srcData[rightIndex + j];
+                        const delta = centerVal * 4 - (topVal + bottomVal + leftVal + rightVal);
+                        const sharpenedVal = centerVal + delta * sharpnessAmount * 0.5;
+
+                        // シャープネスの結果を一時変数に保持 (他の調整に影響を与えないように)
+                        if (j === 0) r = sharpenedVal;
+                        else if (j === 1) g = sharpenedVal;
+                        else b = sharpenedVal;
+                    }
+                }
+                // 境界ピクセルは元の値を使う
+                else {
+                    r = srcData[i];
+                    g = srcData[i+1];
+                    b = srcData[i+2];
+                }
+            }
+
+            // --- 他の調整 ---
             r *= exposureFactor;
             g *= exposureFactor;
             b *= exposureFactor;
@@ -700,24 +746,27 @@ document.addEventListener('DOMContentLoaded', () => {
             g = rgb.g;
             b = rgb.b;
 
+            // --- 粒状性 (強度を1/3に) ---
             if (grainAmount > 0) {
-                const noise = (Math.random() - 0.5) * 2 * grainAmount * 128;
+                const noise = (Math.random() - 0.5) * 2 * grainAmount * (128 / 3); // ★ 係数変更
                 r += noise;
                 g += noise;
                 b += noise;
             }
 
-            // ★ ミストは現状維持 (全体適用)
+            // --- ミスト ---
             if (mistAmount > 0) {
                 r = r * (1 - mistAmount) + 255 * mistAmount;
                 g = g * (1 - mistAmount) + 255 * mistAmount;
                 b = b * (1 - mistAmount) + 255 * mistAmount;
             }
 
+            // --- クリッピングして書き戻し ---
             data[i] = Math.max(0, Math.min(255, r));
             data[i + 1] = Math.max(0, Math.min(255, g));
             data[i + 2] = Math.max(0, Math.min(255, b));
         }
+        if (sharpnessAmount > 0) console.log("Simple sharpness applied.");
         console.log("Pixel adjustments applied.");
     }
 
