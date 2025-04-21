@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImageData = null; // Data URL
     let originalImageObject = null; // Image オブジェクトを保持するように変更
     let previewScale = 1.0;
+    // ★ オフセットと表示サイズは updateLoupePosition でのみ使用
     let previewOffsetX = 0;
     let previewOffsetY = 0;
     let previewDisplayWidth = 0;
@@ -48,8 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
-    let lastMousePos = { x: 0, y: 0 };
-    let isMouseInsidePreview = false;
+    let lastMousePos = { x: 0, y: 0 }; // コンテナ座標を保持
+    // isMouseInsidePreview は不要になるかも
+    // let isMouseInsidePreview = false;
     let previewUpdateTimeout = null;
 
     // --- レンズデータ ---
@@ -115,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     requestAnimationFrame(() => {
                         console.log("Requesting initial updates after image load."); // Debug
-                        updatePreviewDisplayInfo();
+                        updatePreviewDisplayInfo(); // ★ 表示情報計算は必要
                         calculateBaseLoupeSize();
                         applyLoupeSizeFactor();
                         applyPreviewAdjustments();
@@ -223,47 +225,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     previewContainer.addEventListener('mouseenter', (e) => {
-        if (!isLoupeEnabled || previewCanvas.style.display === 'none') return;
-        isMouseInsidePreview = true;
+        // isMouseInsidePreview は使わない
+        // if (!isLoupeEnabled || previewCanvas.style.display === 'none') return;
+        // isMouseInsidePreview = true;
     });
 
     previewContainer.addEventListener('mouseleave', () => {
-        isMouseInsidePreview = false;
+        // isMouseInsidePreview は使わない
+        // isMouseInsidePreview = false;
         clearTimeout(loupeTimer);
         loupe.style.display = 'none';
     });
 
+    // ★ mousemove イベントリスナーを修正
     previewContainer.addEventListener('mousemove', (e) => {
         if (!isLoupeEnabled || previewCanvas.style.display === 'none') return;
 
         const containerRect = previewContainer.getBoundingClientRect();
-        const currentX = e.clientX - containerRect.left;
-        const currentY = e.clientY - containerRect.top;
+        const canvasRect = previewCanvas.getBoundingClientRect();
 
-        if (currentX < previewOffsetX || currentX > previewOffsetX + previewDisplayWidth ||
-            currentY < previewOffsetY || currentY > previewOffsetY + previewDisplayHeight) {
-            if (isMouseInsidePreview) {
-                 isMouseInsidePreview = false;
-                 clearTimeout(loupeTimer);
-                 loupe.style.display = 'none';
-            }
-            return;
-        }
-        if (!isMouseInsidePreview) {
-            isMouseInsidePreview = true;
-        }
+        // マウスのビューポート座標からCanvas要素のローカル座標を計算
+        const canvasMouseX = e.clientX - canvasRect.left;
+        const canvasMouseY = e.clientY - canvasRect.top;
 
-        lastMousePos = { x: currentX, y: currentY };
+        // マウスがCanvasの描画領域内にあるかチェック
+        const isInsideCanvas = canvasMouseX >= 0 && canvasMouseX < canvasRect.width &&
+                               canvasMouseY >= 0 && canvasMouseY < canvasRect.height;
 
-        if (loupe.style.display !== 'block') {
-            clearTimeout(loupeTimer);
-            loupeTimer = setTimeout(() => {
-                if (isMouseInsidePreview) {
+        if (isInsideCanvas) {
+            // コンテナ座標を保存 (ルーペ要素の位置決めに使う)
+            lastMousePos = {
+                x: e.clientX - containerRect.left,
+                y: e.clientY - containerRect.top
+            };
+
+            if (loupe.style.display !== 'block') {
+                clearTimeout(loupeTimer);
+                loupeTimer = setTimeout(() => {
+                    // タイマー発火時にもう一度チェックする代わりに、
+                    // mouseleave でタイマーがクリアされることを期待する
                     showLoupe(lastMousePos);
-                }
-            }, LOUPE_DELAY);
+                }, LOUPE_DELAY);
+            } else {
+                 updateLoupePosition(lastMousePos);
+            }
         } else {
-             updateLoupePosition(lastMousePos);
+            // 領域外に出たらタイマー解除とルーペ非表示
+            clearTimeout(loupeTimer);
+            loupe.style.display = 'none';
         }
     });
 
@@ -365,9 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // ルーペ表示関数
-    function showLoupe(mousePos) {
+    function showLoupe(mousePos) { // mousePos はコンテナ座標
         if (!mousePos || previewCanvas.style.display === 'none' || !isLoupeEnabled) return;
-        updatePreviewDisplayInfo();
+        updatePreviewDisplayInfo(); // オフセット計算のために必要
         calculateBaseLoupeSize();
         applyLoupeSizeFactor();
         updateLoupeBackgroundSize();
@@ -380,13 +389,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageObject) return;
 
         const canvasRect = previewCanvas.getBoundingClientRect();
-        const containerRect = previewContainer.getBoundingClientRect(); // コンテナの位置取得
+        const containerRect = previewContainer.getBoundingClientRect();
 
-        // マウスのコンテナ座標をCanvas要素のローカル座標に変換
+        // マウスのコンテナ座標をCanvas要素の表示領域(canvasRect)のローカル座標に変換
         const canvasMouseX = mousePos.x - (canvasRect.left - containerRect.left);
         const canvasMouseY = mousePos.y - (canvasRect.top - containerRect.top);
 
         // Canvasの表示サイズ(canvasRect)に対する割合 (0-1)
+        // ※ 描画領域ではなく表示領域に対する割合を使う
         const canvasRatioX = Math.max(0, Math.min(1, canvasMouseX / canvasRect.width));
         const canvasRatioY = Math.max(0, Math.min(1, canvasMouseY / canvasRect.height));
 
@@ -703,15 +713,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         const leftVal = srcData[leftIndex + j];
                         const rightVal = srcData[rightIndex + j];
                         const delta = centerVal * 4 - (topVal + bottomVal + leftVal + rightVal);
+                        // ★ 係数を調整可能にする (例: 0.5)
                         const sharpenedVal = centerVal + delta * sharpnessAmount * 0.5;
 
-                        // シャープネスの結果を一時変数に保持 (他の調整に影響を与えないように)
                         if (j === 0) r = sharpenedVal;
                         else if (j === 1) g = sharpenedVal;
                         else b = sharpenedVal;
                     }
                 }
-                // 境界ピクセルは元の値を使う
+                // 境界ピクセルは元の値を使う (シャープネス適用しない)
                 else {
                     r = srcData[i];
                     g = srcData[i+1];
