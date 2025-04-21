@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentImage = null;
     let currentLens = null;
     let originalImageData = null; // Data URL
-    let originalImageObject = null; // ★ Image オブジェクトを保持するように変更
+    let originalImageObject = null; // Image オブジェクトを保持するように変更
     let previewScale = 1.0;
     let previewOffsetX = 0;
     let previewOffsetY = 0;
@@ -52,15 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let isMouseInsidePreview = false;
     let previewUpdateTimeout = null;
 
-    // --- レンズデータ ---
-    const allLenses = [ /* ... レンズデータ省略 ... */
-        { id: 'elmarit-21-f28', name: 'Elmarit-M 21mm f/2.8', category: 'wide', year: 1980, description: '超広角レンズ。ダイナミックな風景写真に。', imageUrl: 'images/lens_placeholder.png' },
-        { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lens_placeholder.png' },
-        { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lens_placeholder.png' },
-        { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lens_placeholder.png' },
-        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lens_placeholder.png' },
-        { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lens_placeholder.png' },
-        { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lens_placeholder.png' },
+    // --- レンズデータ ★ imageUrl のパスを修正 ---
+    const allLenses = [
+        { id: 'elmarit-21-f28', name: 'Elmarit-M 21mm f/2.8', category: 'wide', year: 1980, description: '超広角レンズ。ダイナミックな風景写真に。', imageUrl: 'images/lenses/Elmarit-M_21mm_f2.8.jpg' }, // パス修正
+        { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lenses/Summicron-M_28mm_f2_ASPH.jpeg' }, // パス修正
+        { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lenses/Elmarit-M_28mm_F2.8_4th.jpg' }, // パス修正
+        { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lenses/Summaron_35mm_f2.8.jpg' }, // パス修正
+        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lenses/Summicron-M_35mm_f2_4th.jpg' }, // パス修正
+        { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lenses/Summilux_35mm_f1.4.jpg' }, // パス修正
+        { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Fixed.webp' }, // パス修正
+        // --- 以下は画像がないため placeholder のまま ---
         { id: 'summicron-50-f2-dr', name: 'Summicron 50mm f/2 (DR)', category: 'standard', year: 1956, description: '近接撮影可能なDual Rangeモデル。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summicron-50-f2-v5', name: 'Summicron 50mm f/2 (V)', category: 'standard', year: 1979, description: '現代的な性能を持つ標準レンズの決定版。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summilux-50-f14-v2', name: 'Summilux-M 50mm f/1.4 (E46, Pre-ASPH)', category: 'standard', year: 1961, description: '柔らかな描写と美しいボケが特徴。', imageUrl: 'images/lens_placeholder.png' },
@@ -74,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- イベントリスナー ---
 
-    // 画像読み込み ★ ImageBitmap の使用をやめ、Image オブジェクトを直接使う
+    // 画像読み込み
     imageInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -87,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const img = new Image();
                 img.onload = () => {
                     console.log("Image object loaded."); // Debug
-                    originalImageObject = img; // ★ Image オブジェクトを保持
+                    originalImageObject = img;
 
                     // --- プレビュー解像度計算 ---
                     let scaleX = 1.0;
@@ -106,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     previewCanvas.width = previewWidth;
                     previewCanvas.height = previewHeight;
-                    // ★ Image オブジェクトを直接描画
                     previewCtx.drawImage(originalImageObject, 0, 0, previewWidth, previewHeight);
                     console.log("Initial image drawn to canvas."); // Debug
 
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('画像の表示準備に失敗しました。');
                     resetPreview();
                 };
-                img.src = originalImageData; // これで img.onload がトリガーされる
+                img.src = originalImageData;
             }
             reader.onerror = () => {
                  console.error('File read error.');
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.display = 'none';
         loupe.style.backgroundImage = 'none';
         originalImageData = null;
-        originalImageObject = null; // ★ Image オブジェクトもクリア
+        originalImageObject = null;
         currentImage = null;
         previewScale = 1.0;
         previewOffsetX = 0;
@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // プレビュー更新リクエスト (デバウンス)
     function requestPreviewUpdate() {
-        if (!originalImageObject) return; // ★ Image オブジェクトをチェック
+        if (!originalImageObject) return;
         clearTimeout(previewUpdateTimeout);
         previewUpdateTimeout = setTimeout(() => {
             applyPreviewAdjustments();
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ルーペ位置更新関数
     function updateLoupePosition(mousePos) {
-        if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageObject) return; // ★ Image オブジェクトをチェック
+        if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageObject) return;
 
         const imgMouseX = mousePos.x - previewOffsetX;
         const imgMouseY = mousePos.y - previewOffsetY;
@@ -391,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.left = `${loupeLeft}px`;
         loupe.style.top = `${loupeTop}px`;
 
-        // ★ 背景画像の位置計算は元画像の naturalWidth/Height を使う
         const bgWidth = originalImageObject.naturalWidth * zoomFactor;
         const bgHeight = originalImageObject.naturalHeight * zoomFactor;
         const bgPosX = - (imgRatioX * bgWidth - loupeSize / 2);
@@ -418,8 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ルーペ背景サイズ更新関数
     function updateLoupeBackgroundSize() {
-        if (!originalImageObject || !loupe) return; // ★ Image オブジェクトをチェック
-        // ★ 背景サイズは元画像の naturalWidth/Height を使う
+        if (!originalImageObject || !loupe) return;
         const bgWidth = originalImageObject.naturalWidth * zoomFactor;
         const bgHeight = originalImageObject.naturalHeight * zoomFactor;
         loupe.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
@@ -428,26 +426,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 調整をプレビュー画像に適用 (Canvas ベース)
     function applyPreviewAdjustments() {
-        if (!originalImageObject || !previewCtx) return; // ★ Image オブジェクトをチェック
+        if (!originalImageObject || !previewCtx) return;
 
         console.log("Applying adjustments to preview canvas...");
 
-        // 1. 元画像をCanvasに描画 (縮小して描画)
         previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
         previewCtx.drawImage(originalImageObject, 0, 0, previewCanvas.width, previewCanvas.height);
 
-        // 2. ピクセルデータを取得
         const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
         const data = imageData.data;
 
-        // 3. ピクセルデータに調整を適用
         try {
             applyPixelAdjustments(data, previewCanvas.width, previewCanvas.height, adjustments);
         } catch (error) {
             console.error("Error applying pixel adjustments to preview:", error);
         }
 
-        // 4. 調整後のピクセルデータをCanvasに戻す
         previewCtx.putImageData(imageData, 0, 0);
         console.log("Preview canvas updated.");
     }
@@ -470,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lensItem.classList.add('lens-item');
             lensItem.dataset.lensId = lens.id;
             lensItem.innerHTML = `
-                <img src="${lens.imageUrl || 'images/lens_placeholder.png'}" alt="${lens.name}" onerror="this.onerror=null;this.src='images/lens_placeholder.png';">
+                <img src="${lens.imageUrl}" alt="${lens.name}" onerror="this.onerror=null;this.src='images/lens_placeholder.png';">
                 <p>${lens.name}</p>
             `;
             if (currentLens && currentLens.id === lens.id) {
@@ -512,7 +506,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 画像保存処理 (Canvas使用版)
     function downloadImageWithAdjustments() {
-        if (!originalImageObject) { // ★ Image オブジェクトをチェック
+        // ... (変更なし) ...
+        if (!originalImageObject) {
             alert("画像を読み込んでください。");
             return;
         }
@@ -524,7 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveCtx = saveCanvas.getContext('2d');
 
         try {
-            // ★ Image オブジェクトを渡す
             processCanvas(originalImageObject, saveCanvas, saveCtx);
 
             saveCanvas.toBlob((blob) => {
@@ -554,19 +548,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Canvas処理本体 (Image or ImageBitmap を受け取るように変更)
+    // Canvas処理本体
     function processCanvas(imgSource, canvas, ctx) {
-        // ★ naturalWidth/Height を使う
+        // ... (変更なし) ...
         canvas.width = imgSource.naturalWidth;
         canvas.height = imgSource.naturalHeight;
-
         ctx.drawImage(imgSource, 0, 0);
-
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
-
         applyPixelAdjustments(data, canvas.width, canvas.height, adjustments);
-
         ctx.putImageData(imageData, 0, 0);
         console.log("Canvas processed.");
     }
