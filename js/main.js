@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_PREVIEW_HEIGHT = 1080;
     const PREVIEW_DEBOUNCE_TIME = 150;
     const LOUPE_DELAY = 1000;
+    const MIST_HIGHLIGHT_THRESHOLD = 200; // ミスト効果を適用する輝度の閾値 (0-255)
 
     // --- 状態管理 ---
     let currentImage = null;
@@ -34,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImageData = null; // Data URL
     let originalImageObject = null; // Image オブジェクトを保持するように変更
     let previewScale = 1.0;
-    // ★ オフセットと表示サイズは updateLoupePosition でのみ使用
     let previewOffsetX = 0;
     let previewOffsetY = 0;
     let previewDisplayWidth = 0;
@@ -50,8 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let loupeSize = 0;
     let loupeTimer = null;
     let lastMousePos = { x: 0, y: 0 }; // コンテナ座標を保持
-    // isMouseInsidePreview は不要になるかも
-    // let isMouseInsidePreview = false;
     let previewUpdateTimeout = null;
 
     // --- レンズデータ ---
@@ -226,13 +224,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     previewContainer.addEventListener('mouseenter', (e) => {
         // isMouseInsidePreview は使わない
-        // if (!isLoupeEnabled || previewCanvas.style.display === 'none') return;
-        // isMouseInsidePreview = true;
     });
 
     previewContainer.addEventListener('mouseleave', () => {
         // isMouseInsidePreview は使わない
-        // isMouseInsidePreview = false;
         clearTimeout(loupeTimer);
         loupe.style.display = 'none';
     });
@@ -262,8 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (loupe.style.display !== 'block') {
                 clearTimeout(loupeTimer);
                 loupeTimer = setTimeout(() => {
-                    // タイマー発火時にもう一度チェックする代わりに、
-                    // mouseleave でタイマーがクリアされることを期待する
                     showLoupe(lastMousePos);
                 }, LOUPE_DELAY);
             } else {
@@ -384,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.display = 'block';
     }
 
-    // ルーペ位置更新関数 ★ 修正: Canvas ローカル座標基準に変更
+    // ルーペ位置更新関数
     function updateLoupePosition(mousePos) { // mousePos はコンテナ座標 {x, y}
         if (!previewCanvas || previewCanvas.style.display === 'none' || !loupe || !originalImageObject) return;
 
@@ -396,7 +389,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvasMouseY = mousePos.y - (canvasRect.top - containerRect.top);
 
         // Canvasの表示サイズ(canvasRect)に対する割合 (0-1)
-        // ※ 描画領域ではなく表示領域に対する割合を使う
         const canvasRatioX = Math.max(0, Math.min(1, canvasMouseX / canvasRect.width));
         const canvasRatioY = Math.max(0, Math.min(1, canvasMouseY / canvasRect.height));
 
@@ -409,7 +401,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // 背景画像の位置計算 (元画像のサイズ基準)
         const bgWidth = originalImageObject.naturalWidth * zoomFactor;
         const bgHeight = originalImageObject.naturalHeight * zoomFactor;
-        // ★ Canvasの割合を使用
         const bgPosX = - (canvasRatioX * bgWidth - loupeSize / 2);
         const bgPosY = - (canvasRatioY * bgHeight - loupeSize / 2);
         loupe.style.backgroundPosition = `${bgPosX}px ${bgPosY}px`;
@@ -666,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ピクセルデータに調整を適用する関数 ★ 粒状性、シャープネス修正
+    // ピクセルデータに調整を適用する関数 ★ ミスト効果修正
     function applyPixelAdjustments(data, width, height, adj) {
         console.log("Applying pixel adjustments...", adj);
         const brightnessFactor = adj.brightness / 100;
@@ -684,7 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const tempFactorG = targetRgb.g / baseRgb.g;
         const tempFactorB = targetRgb.b / baseRgb.b;
 
-        // シャープネス処理用に元のデータをコピー (シャープネスが有効な場合のみ)
         const srcData = sharpnessAmount > 0 ? new Uint8ClampedArray(data) : null;
         const step = 4;
         const widthStep = width * step;
@@ -713,7 +703,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const leftVal = srcData[leftIndex + j];
                         const rightVal = srcData[rightIndex + j];
                         const delta = centerVal * 4 - (topVal + bottomVal + leftVal + rightVal);
-                        // ★ 係数を調整可能にする (例: 0.5)
                         const sharpenedVal = centerVal + delta * sharpnessAmount * 0.5;
 
                         if (j === 0) r = sharpenedVal;
@@ -721,7 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         else b = sharpenedVal;
                     }
                 }
-                // 境界ピクセルは元の値を使う (シャープネス適用しない)
                 else {
                     r = srcData[i];
                     g = srcData[i+1];
@@ -758,17 +746,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- 粒状性 (強度を1/3に) ---
             if (grainAmount > 0) {
-                const noise = (Math.random() - 0.5) * 2 * grainAmount * (128 / 3); // ★ 係数変更
+                const noise = (Math.random() - 0.5) * 2 * grainAmount * (128 / 3);
                 r += noise;
                 g += noise;
                 b += noise;
             }
 
-            // --- ミスト ---
+            // --- ミスト (ハイライトのみ) ---
             if (mistAmount > 0) {
-                r = r * (1 - mistAmount) + 255 * mistAmount;
-                g = g * (1 - mistAmount) + 255 * mistAmount;
-                b = b * (1 - mistAmount) + 255 * mistAmount;
+                // 輝度を計算 (簡易)
+                const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+                if (luminance > MIST_HIGHLIGHT_THRESHOLD) {
+                    // 閾値を超えた分に応じて強度を決定 (0-1)
+                    const intensity = Math.min(1, (luminance - MIST_HIGHLIGHT_THRESHOLD) / (255 - MIST_HIGHLIGHT_THRESHOLD));
+                    // 強度とスライダー値で白を混合
+                    const mixFactor = mistAmount * intensity;
+                    r = r * (1 - mixFactor) + 255 * mixFactor;
+                    g = g * (1 - mixFactor) + 255 * mixFactor;
+                    b = b * (1 - mixFactor) + 255 * mixFactor;
+                }
             }
 
             // --- クリッピングして書き戻し ---
