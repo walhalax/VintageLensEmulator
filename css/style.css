@@ -304,7 +304,8 @@ input:checked + .slider:before { transform: translateX(20px); }
 .lens-list {
     display: flex;
     gap: 1rem;
-    padding: 1rem;
+    /* ★ padding を左右のみに変更 */
+    padding: 0 1rem; /* 上下の padding を削除 */
     min-width: max-content;
 }
 .lens-item { /* ... 省略 ... */ }

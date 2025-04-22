@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_PREVIEW_HEIGHT = 1080;
     const PREVIEW_DEBOUNCE_TIME = 150;
     const LOUPE_DELAY = 1000;
-    const MIST_HIGHLIGHT_THRESHOLD = 200; // ミスト効果を適用する輝度の閾値 (0-255)
+    const MIST_HIGHLIGHT_THRESHOLD = 200;
 
     // --- 状態管理 ---
     let currentImage = null;
@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
     };
     let isLoupeEnabled = false;
-    let zoomFactor = 3;
-    let loupeSizeFactor = 1.3;
+    let zoomFactor = 3; // 初期値は min(1.5) 以上なので OK
+    let loupeSizeFactor = 1.5; // ★ 初期値を 1.5 に変更
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
@@ -73,8 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     // --- イベントリスナー ---
-
-    // 画像読み込み
+    // ... (画像読み込み、保存、パラメータ調整、カテゴリフィルター、レンズ選択、ルーペ関連リスナーは変更なし) ...
     imageInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -140,11 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             imageInput.value = '';
         }
     });
-
-    // 画像保存
     saveButton.addEventListener('click', downloadImageWithAdjustments);
-
-    // パラメータ調整 (スライダー)
     adjustmentControls.addEventListener('input', (event) => {
         const target = event.target;
         if (target.type === 'range') {
@@ -157,16 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
             requestPreviewUpdate();
         }
     });
-
-    // 色温度スライダーのイベントリスナー
     temperatureSlider.addEventListener('input', (event) => {
         adjustments.temperature = parseInt(event.target.value, 10);
         updateAdjustmentValueDisplay('temperature', event.target.value);
         requestPreviewUpdate();
     });
-
-
-    // レンズカテゴリフィルター
     lensCategoryButtons.forEach(button => {
         button.addEventListener('click', () => {
             lensCategoryButtons.forEach(btn => btn.classList.remove('active'));
@@ -175,8 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
             displayLenses(category);
         });
     });
-
-    // レンズ選択
     lensListContainer.addEventListener('click', (event) => {
         const lensItem = event.target.closest('.lens-item');
         if (lensItem && lensItem.dataset.lensId) {
@@ -184,8 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
             selectLens(lensId);
         }
     });
-
-    // --- ルーペ機能イベントリスナー ---
     loupeToggle.addEventListener('change', (e) => {
         isLoupeEnabled = e.target.checked;
         if (loupeToggleLabelOff && loupeToggleLabelOn) {
@@ -202,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
             loupe.style.display = 'none';
         }
     });
-
     loupeSizeSlider.addEventListener('input', (e) => {
         loupeSizeFactor = parseFloat(e.target.value);
         loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
@@ -212,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updateLoupePosition(lastMousePos);
         }
     });
-
     loupeZoomSlider.addEventListener('input', (e) => {
         zoomFactor = parseFloat(e.target.value);
         loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
@@ -221,34 +205,24 @@ document.addEventListener('DOMContentLoaded', () => {
             updateLoupePosition(lastMousePos);
         }
     });
-
-    previewContainer.addEventListener('mouseenter', (e) => {
-        // isMouseInsidePreview は使わない
-    });
-
+    previewContainer.addEventListener('mouseenter', (e) => { });
     previewContainer.addEventListener('mouseleave', () => {
-        // isMouseInsidePreview は使わない
         clearTimeout(loupeTimer);
         loupe.style.display = 'none';
     });
-
-    // ★ mousemove イベントリスナーを修正
     previewContainer.addEventListener('mousemove', (e) => {
         if (!isLoupeEnabled || previewCanvas.style.display === 'none') return;
 
         const containerRect = previewContainer.getBoundingClientRect();
         const canvasRect = previewCanvas.getBoundingClientRect();
 
-        // マウスのビューポート座標からCanvas要素のローカル座標を計算
         const canvasMouseX = e.clientX - canvasRect.left;
         const canvasMouseY = e.clientY - canvasRect.top;
 
-        // マウスがCanvasの描画領域内にあるかチェック
         const isInsideCanvas = canvasMouseX >= 0 && canvasMouseX < canvasRect.width &&
                                canvasMouseY >= 0 && canvasMouseY < canvasRect.height;
 
         if (isInsideCanvas) {
-            // コンテナ座標を保存 (ルーペ要素の位置決めに使う)
             lastMousePos = {
                 x: e.clientX - containerRect.left,
                 y: e.clientY - containerRect.top
@@ -263,13 +237,10 @@ document.addEventListener('DOMContentLoaded', () => {
                  updateLoupePosition(lastMousePos);
             }
         } else {
-            // 領域外に出たらタイマー解除とルーペ非表示
             clearTimeout(loupeTimer);
             loupe.style.display = 'none';
         }
     });
-
-
     window.addEventListener('resize', () => {
         if (previewCanvas.style.display !== 'none') {
             updatePreviewDisplayInfo();
@@ -384,21 +355,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvasRect = previewCanvas.getBoundingClientRect();
         const containerRect = previewContainer.getBoundingClientRect();
 
-        // マウスのコンテナ座標をCanvas要素の表示領域(canvasRect)のローカル座標に変換
         const canvasMouseX = mousePos.x - (canvasRect.left - containerRect.left);
         const canvasMouseY = mousePos.y - (canvasRect.top - containerRect.top);
 
-        // Canvasの表示サイズ(canvasRect)に対する割合 (0-1)
         const canvasRatioX = Math.max(0, Math.min(1, canvasMouseX / canvasRect.width));
         const canvasRatioY = Math.max(0, Math.min(1, canvasMouseY / canvasRect.height));
 
-        // ルーペ要素の位置 (コンテナ座標基準 - これは変更なし)
         const loupeLeft = mousePos.x - loupeSize / 2;
         const loupeTop = mousePos.y - loupeSize / 2;
         loupe.style.left = `${loupeLeft}px`;
         loupe.style.top = `${loupeTop}px`;
 
-        // 背景画像の位置計算 (元画像のサイズ基準)
         const bgWidth = originalImageObject.naturalWidth * zoomFactor;
         const bgHeight = originalImageObject.naturalHeight * zoomFactor;
         const bgPosX = - (canvasRatioX * bgWidth - loupeSize / 2);
@@ -657,8 +624,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ピクセルデータに調整を適用する関数 ★ ミスト効果修正
+    // ピクセルデータに調整を適用する関数
     function applyPixelAdjustments(data, width, height, adj) {
+        // ... (実装済み、ミストはハイライト適用) ...
         console.log("Applying pixel adjustments...", adj);
         const brightnessFactor = adj.brightness / 100;
         const contrastFactor = adj.contrast / 100;
@@ -754,12 +722,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- ミスト (ハイライトのみ) ---
             if (mistAmount > 0) {
-                // 輝度を計算 (簡易)
                 const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
                 if (luminance > MIST_HIGHLIGHT_THRESHOLD) {
-                    // 閾値を超えた分に応じて強度を決定 (0-1)
                     const intensity = Math.min(1, (luminance - MIST_HIGHLIGHT_THRESHOLD) / (255 - MIST_HIGHLIGHT_THRESHOLD));
-                    // 強度とスライダー値で白を混合
                     const mixFactor = mistAmount * intensity;
                     r = r * (1 - mixFactor) + 255 * mixFactor;
                     g = g * (1 - mixFactor) + 255 * mixFactor;
@@ -778,7 +743,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 初期化 ---
     function init() {
-        // ... (変更なし) ...
+        // ★ ルーペサイズ初期値を修正
+        loupeSizeFactor = parseFloat(loupeSizeSlider.value); // HTMLのvalueを初期値とする
+        loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
+
+        // スライダー/トグルの初期値をadjustmentsオブジェクトとUIに反映
         Object.keys(adjustments).forEach(key => {
             const slider = document.getElementById(key);
             if (slider) {
@@ -787,6 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // ルーペ関連の初期化
         loupeToggle.checked = isLoupeEnabled;
         if (loupeToggleLabelOff && loupeToggleLabelOn) {
             loupeToggleLabelOff.style.fontWeight = !isLoupeEnabled ? 'bold' : 'normal';
@@ -797,10 +767,9 @@ document.addEventListener('DOMContentLoaded', () => {
             previewContainer.classList.add('loupe-disabled');
         }
 
-        loupeZoomSlider.value = zoomFactor;
+        zoomFactor = parseFloat(loupeZoomSlider.value); // HTMLのvalueを初期値とする
         loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
-        loupeSizeSlider.value = loupeSizeFactor;
-        loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
+        // loupeSizeFactor は上で設定済み
 
         displayLenses();
         selectLens(null);
