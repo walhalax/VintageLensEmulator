@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let isLoupeEnabled = false;
     let zoomFactor = 3;
-    let loupeSizeFactor = 2.0; // ★ 初期値を 2.0 に変更
+    let loupeSizeFactor = 2.0;
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
@@ -60,7 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lenses/Summaron_35mm_f2.8.jpg' },
         { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lenses/Summicron-M_35mm_f2_4th.jpg' },
         { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lenses/Summilux_35mm_f1.4.jpg' },
-        { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Fixed.webp' },
+        // ★ imageUrl を修正
+        { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Rigid.webp' },
         { id: 'summicron-50-f2-dr', name: 'Summicron 50mm f/2 (DR)', category: 'standard', year: 1956, description: '近接撮影可能なDual Rangeモデル。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summicron-50-f2-v5', name: 'Summicron 50mm f/2 (V)', category: 'standard', year: 1979, description: '現代的な性能を持つ標準レンズの決定版。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summilux-50-f14-v2', name: 'Summilux-M 50mm f/1.4 (E46, Pre-ASPH)', category: 'standard', year: 1961, description: '柔らかな描写と美しいボケが特徴。', imageUrl: 'images/lens_placeholder.png' },
@@ -624,9 +625,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ピクセルデータに調整を適用する関数
+    // ピクセルデータに調整を適用する関数 ★ ミスト効果修正
     function applyPixelAdjustments(data, width, height, adj) {
-        // ... (実装済み、ミストはハイライト適用) ...
         console.log("Applying pixel adjustments...", adj);
         const brightnessFactor = adj.brightness / 100;
         const contrastFactor = adj.contrast / 100;
@@ -722,9 +722,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- ミスト (ハイライトのみ) ---
             if (mistAmount > 0) {
+                // 輝度を計算 (簡易)
                 const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
                 if (luminance > MIST_HIGHLIGHT_THRESHOLD) {
+                    // 閾値を超えた分に応じて強度を決定 (0-1)
                     const intensity = Math.min(1, (luminance - MIST_HIGHLIGHT_THRESHOLD) / (255 - MIST_HIGHLIGHT_THRESHOLD));
+                    // 強度とスライダー値で白を混合
                     const mixFactor = mistAmount * intensity;
                     r = r * (1 - mixFactor) + 255 * mixFactor;
                     g = g * (1 - mixFactor) + 255 * mixFactor;
