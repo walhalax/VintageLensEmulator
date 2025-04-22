@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
     };
     let isLoupeEnabled = false;
-    let zoomFactor = 3;
-    let loupeSizeFactor = 1.25; // ★ 初期値を 1.25 に変更
+    let zoomFactor = 1.25; // ★ 初期値を 1.25 に変更
+    let loupeSizeFactor = 1.5; // ★ 初期値を 1.5 に戻す
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
@@ -58,8 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lenses/Summicron-M_28mm_f2_ASPH.jpeg' },
         { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lenses/Elmarit-M_28mm_F2.8_4th.jpg' },
         { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lenses/Summaron_35mm_f2.8.jpg' },
-        // ★ imageUrl を placeholder に戻す
-        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lens_placeholder.png' },
+        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lens_placeholder.png' }, // 紐付け解除
         { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lenses/Summilux_35mm_f1.4.jpg' },
         { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Rigid.webp' },
         { id: 'summicron-50-f2-dr', name: 'Summicron 50mm f/2 (DR)', category: 'standard', year: 1956, description: '近接撮影可能なDual Rangeモデル。', imageUrl: 'images/lens_placeholder.png' },
@@ -744,11 +743,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 初期化 ---
     function init() {
-        // ★ ルーペサイズ初期値を修正 (HTMLから取得)
+        // ★ ルーペ初期値をHTMLから取得するように修正
+        zoomFactor = parseFloat(loupeZoomSlider.value); // ★ 修正: zoomFactor もHTMLから取得
+        loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
         loupeSizeFactor = parseFloat(loupeSizeSlider.value);
         loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
-        zoomFactor = parseFloat(loupeZoomSlider.value);
-        loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
 
         // スライダー/トグルの初期値をadjustmentsオブジェクトとUIに反映
         Object.keys(adjustments).forEach(key => {

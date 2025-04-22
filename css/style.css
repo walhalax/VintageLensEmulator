@@ -298,15 +298,45 @@ input:checked + .slider:before { transform: translateX(20px); }
 }
 
 /* レンズ選択 */
-.lens-categories { /* ... 省略 ... */ }
-.category-button { /* ... 省略 ... */ }
-.category-button.active { /* ... 省略 ... */ }
-.lens-list-container { /* ... 省略 ... */ }
+.lens-categories {
+    margin-bottom: 1rem; /* カテゴリボタンとリストの間にスペース */
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.category-button {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid #ced4da;
+    background-color: #fff;
+    color: #495057;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+.category-button:hover {
+    background-color: #e9ecef;
+}
+.category-button.active {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+/* ★ .lens-list-container に overflow を追加 */
+.lens-list-container {
+    overflow-x: auto; /* 横スクロールを有効化 */
+    overflow-y: hidden; /* 縦スクロールは無効化 */
+    width: 100%; /* 幅を親要素に合わせる */
+    border: 1px solid #dee2e6; /* 境界線 */
+    border-radius: 4px;
+    background-color: #f8f9fa; /* 背景色 */
+    padding: 0.5rem 0; /* 上下に少しパディング */
+}
 .lens-list {
     display: flex;
     gap: 1rem;
-    padding: 0 1rem; /* 上下の padding を削除 */
-    min-width: max-content;
+    padding: 0 1rem; /* 左右の padding */
+    min-width: max-content; /* 内容に合わせて幅を確保 */
 }
 .lens-item {
     border: 2px solid transparent;
@@ -316,6 +346,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     cursor: pointer;
     transition: background-color 0.2s, border-color 0.2s;
     max-width: 120px;
+    flex-shrink: 0; /* 縮まないように */
 }
 .lens-item:hover {
     background-color: #f1f3f5;
@@ -327,7 +358,6 @@ input:checked + .slider:before { transform: translateX(20px); }
 .lens-item img {
     max-width: 80px;
     height: auto;
-    /* margin-bottom: 0.5rem; */ /* ★ 下マージン削除 */
     display: block;
     margin-left: auto;
     margin-right: auto;
@@ -339,13 +369,25 @@ input:checked + .slider:before { transform: translateX(20px); }
     line-height: 1.3;
     white-space: normal;
     word-break: break-word;
-    margin-top: 0.5rem; /* ★ 画像との間に少しマージンを追加 */
+    margin-top: 0.5rem;
 }
 
 /* レンズ情報 */
-#lens-details { /* ... 省略 ... */ }
-#lens-details h3 { /* ... 省略 ... */ }
-#lens-details p { /* ... 省略 ... */ }
+#lens-details {
+    margin-top: 1rem; /* レンズリストとの間にスペース */
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+#lens-details h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #343a40;
+}
+#lens-details p {
+    font-size: 0.9rem;
+    color: #495057;
+    margin: 0;
+}
 
 
 /* レスポンシブデザイン: 横幅が広い場合 (例: 992px以上) */
