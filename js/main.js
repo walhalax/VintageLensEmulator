@@ -32,8 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 状態管理 ---
     let currentImage = null;
     let currentLens = null;
-    let originalImageData = null; // Data URL
-    let originalImageObject = null; // Image オブジェクトを保持するように変更
+    let originalImageData = null; // Data URL of original image
+    let originalImageObject = null; // Image object of original image
+    let adjustedImageDataUrl = null; // ★ Data URL of adjusted preview canvas
     let previewScale = 1.0;
     let previewOffsetX = 0;
     let previewOffsetY = 0;
@@ -44,12 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
         exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
     };
     let isLoupeEnabled = false;
-    let zoomFactor = 1.2; // ★ 初期値を 1.2 に変更
-    let loupeSizeFactor = 2.5; // ★ 初期値を 2.5 に変更
+    let zoomFactor = 1.2;
+    let loupeSizeFactor = 2.5;
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
-    let lastMousePos = { x: 0, y: 0 }; // コンテナ座標を保持
+    let lastMousePos = { x: 0, y: 0 };
     let previewUpdateTimeout = null;
 
     // --- レンズデータ ---
@@ -58,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'summicron-28-f2', name: 'Summicron-M 28mm f/2 ASPH.', category: 'wide', year: 2000, description: '高性能な大口径広角レンズ。シャープな描写。', imageUrl: 'images/lenses/Summicron-M_28mm_f2_ASPH.jpeg' },
         { id: 'elmarit-28-f28-v4', name: 'Elmarit-M 28mm f/2.8 (IV)', category: 'wide', year: 1993, description: 'コンパクトな広角レンズ。風景やスナップに。', imageUrl: 'images/lenses/Elmarit-M_28mm_F2.8_4th.jpg' },
         { id: 'summaron-35-f28', name: 'Summaron 35mm f/2.8', category: 'wide', year: 1958, description: 'クラシックな描写が楽しめる広角レンズ。', imageUrl: 'images/lenses/Summaron_35mm_f2.8.jpg' },
-        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lens_placeholder.png' }, // 紐付け解除
+        { id: 'summicron-35-f2-v4', name: 'Summicron-M 35mm f/2 (IV "Bokeh King")', category: 'wide', year: 1979, description: '「ボケキング」として知られる人気の35mm。', imageUrl: 'images/lens_placeholder.png' },
         { id: 'summilux-35-f14-pre', name: 'Summilux 35mm f/1.4 (Pre-ASPH)', category: 'wide', year: 1961, description: '独特のフレアとボケを持つ伝説的なレンズ。', imageUrl: 'images/lenses/Summilux_35mm_f1.4.jpg' },
         { id: 'summicron-50-f2-rigid', name: 'Summicron 50mm f/2 (Rigid)', category: 'standard', year: 1956, description: '初期の代表的な標準レンズ。高い解像力。', imageUrl: 'images/lenses/Summicron_50mm_f2_Rigid.webp' },
         { id: 'summicron-50-f2-dr', name: 'Summicron 50mm f/2 (DR)', category: 'standard', year: 1956, description: '近接撮影可能なDual Rangeモデル。', imageUrl: 'images/lens_placeholder.png' },
@@ -73,7 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     // --- イベントリスナー ---
-    // ... (画像読み込み、保存、パラメータ調整、カテゴリフィルター、レンズ選択、ルーペ関連リスナーは変更なし) ...
+
+    // 画像読み込み
     imageInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -81,11 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (e) => {
                 originalImageData = e.target.result;
                 currentImage = file;
-                console.log("FileReader loaded."); // Debug
+                adjustedImageDataUrl = null; // ★ 調整後データをリセット
+                console.log("FileReader loaded.");
 
                 const img = new Image();
                 img.onload = () => {
-                    console.log("Image object loaded."); // Debug
+                    console.log("Image object loaded.");
                     originalImageObject = img;
 
                     // --- プレビュー解像度計算 ---
@@ -106,18 +109,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     previewCanvas.width = previewWidth;
                     previewCanvas.height = previewHeight;
                     previewCtx.drawImage(originalImageObject, 0, 0, previewWidth, previewHeight);
-                    console.log("Initial image drawn to canvas."); // Debug
+                    console.log("Initial image drawn to canvas.");
 
                     previewCanvas.style.display = 'block';
                     placeholderText.style.display = 'none';
-                    loupe.style.backgroundImage = `url('${originalImageData}')`;
+                    updateLoupeBackground(); // ★ ルーペ背景更新関数を呼ぶ
 
                     requestAnimationFrame(() => {
-                        console.log("Requesting initial updates after image load."); // Debug
-                        updatePreviewDisplayInfo(); // ★ 表示情報計算は必要
+                        console.log("Requesting initial updates after image load.");
+                        updatePreviewDisplayInfo();
                         calculateBaseLoupeSize();
                         applyLoupeSizeFactor();
-                        applyPreviewAdjustments();
+                        applyPreviewAdjustments(); // これで adjustedImageDataUrl が設定される
                     });
                 };
                 img.onerror = () => {
@@ -139,7 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
             imageInput.value = '';
         }
     });
+
+    // 画像保存
     saveButton.addEventListener('click', downloadImageWithAdjustments);
+
+    // パラメータ調整 (スライダー) - input イベント (プレビュー更新用)
     adjustmentControls.addEventListener('input', (event) => {
         const target = event.target;
         if (target.type === 'range') {
@@ -149,14 +156,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 adjustments[name] = parseFloat(value);
             }
             updateAdjustmentValueDisplay(name, value);
-            requestPreviewUpdate();
+            requestPreviewUpdate(); // プレビューCanvasのみ更新
         }
     });
-    temperatureSlider.addEventListener('input', (event) => {
-        adjustments.temperature = parseInt(event.target.value, 10);
-        updateAdjustmentValueDisplay('temperature', event.target.value);
-        requestPreviewUpdate();
+
+    // パラメータ調整 (スライダー) - change イベント (ルーペ背景更新用) ★追加
+    adjustmentControls.addEventListener('change', (event) => {
+        const target = event.target;
+        if (target.type === 'range') {
+            console.log("Slider change event triggered, updating loupe background."); // Debug
+            // applyPreviewAdjustments が完了して adjustedImageDataUrl が更新されるのを待つ必要があるが、
+            // 簡略化のため、ここでは debounce 後の applyPreviewAdjustments 完了を期待して背景更新を試みる
+            // (より確実にするには applyPreviewAdjustments 内で更新するか、Promiseを使う)
+            updateLoupeBackground();
+            // ルーペが表示されていれば位置も更新
+            if (loupe.style.display === 'block') {
+                updateLoupePosition(lastMousePos);
+                updateLoupeBackgroundSize(); // サイズも念のため更新
+            }
+        }
     });
+
+
+    // レンズカテゴリフィルター
     lensCategoryButtons.forEach(button => {
         button.addEventListener('click', () => {
             lensCategoryButtons.forEach(btn => btn.classList.remove('active'));
@@ -165,6 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
             displayLenses(category);
         });
     });
+
+    // レンズ選択
     lensListContainer.addEventListener('click', (event) => {
         const lensItem = event.target.closest('.lens-item');
         if (lensItem && lensItem.dataset.lensId) {
@@ -172,6 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
             selectLens(lensId);
         }
     });
+
+    // --- ルーペ機能イベントリスナー ---
     loupeToggle.addEventListener('change', (e) => {
         isLoupeEnabled = e.target.checked;
         if (loupeToggleLabelOff && loupeToggleLabelOn) {
@@ -182,12 +208,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isLoupeEnabled) {
             previewContainer.classList.remove('loupe-disabled');
+            // ルーペ有効時に最新の調整後画像を使うように試みる
+            updateLoupeBackground();
         } else {
             previewContainer.classList.add('loupe-disabled');
             clearTimeout(loupeTimer);
             loupe.style.display = 'none';
         }
     });
+
     loupeSizeSlider.addEventListener('input', (e) => {
         loupeSizeFactor = parseFloat(e.target.value);
         loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
@@ -197,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateLoupePosition(lastMousePos);
         }
     });
+
     loupeZoomSlider.addEventListener('input', (e) => {
         zoomFactor = parseFloat(e.target.value);
         loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
@@ -205,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateLoupePosition(lastMousePos);
         }
     });
+
     previewContainer.addEventListener('mouseenter', (e) => { });
     previewContainer.addEventListener('mouseleave', () => {
         clearTimeout(loupeTimer);
@@ -265,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.backgroundImage = 'none';
         originalImageData = null;
         originalImageObject = null;
+        adjustedImageDataUrl = null; // ★ リセット
         currentImage = null;
         previewScale = 1.0;
         previewOffsetX = 0;
@@ -337,12 +369,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ルーペ表示関数
+    // ルーペ表示関数 ★ 背景設定を修正
     function showLoupe(mousePos) { // mousePos はコンテナ座標
         if (!mousePos || previewCanvas.style.display === 'none' || !isLoupeEnabled) return;
-        updatePreviewDisplayInfo(); // オフセット計算のために必要
+        updatePreviewDisplayInfo();
         calculateBaseLoupeSize();
         applyLoupeSizeFactor();
+        updateLoupeBackground(); // ★ 背景更新関数を呼ぶ
         updateLoupeBackgroundSize();
         updateLoupePosition(mousePos);
         loupe.style.display = 'block';
@@ -399,8 +432,20 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
     }
 
+    // ★ ルーペ背景更新関数を追加
+    function updateLoupeBackground() {
+        if (!loupe) return;
+        // 調整後のデータがあればそれを、なければ元の画像データを使う
+        const imageUrl = adjustedImageDataUrl || originalImageData;
+        if (imageUrl) {
+            loupe.style.backgroundImage = `url('${imageUrl}')`;
+        } else {
+            loupe.style.backgroundImage = 'none';
+        }
+    }
 
-    // 調整をプレビュー画像に適用 (Canvas ベース)
+
+    // 調整をプレビュー画像に適用 (Canvas ベース) ★ 調整後データURL保存追加
     function applyPreviewAdjustments() {
         if (!originalImageObject || !previewCtx) return;
 
@@ -420,6 +465,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         previewCtx.putImageData(imageData, 0, 0);
         console.log("Preview canvas updated.");
+
+        // ★ 調整後の画像をData URLとして保存 (やや重い処理)
+        try {
+            adjustedImageDataUrl = previewCanvas.toDataURL();
+            // console.log("Adjusted image data URL updated."); // Debug
+        } catch (e) {
+            console.error("Error creating Data URL from adjusted canvas:", e);
+            adjustedImageDataUrl = null; // エラー時はリセット
+        }
     }
 
     // レンズリストを表示
@@ -744,9 +798,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 初期化 ---
     function init() {
         // ★ ルーペ初期値をHTMLから取得するように修正
-        zoomFactor = parseFloat(loupeZoomSlider.value); // ★ 修正: zoomFactor もHTMLから取得
+        zoomFactor = parseFloat(loupeZoomSlider.value);
         loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
-        loupeSizeFactor = parseFloat(loupeSizeSlider.value); // ★ 修正: loupeSizeFactor もHTMLから取得
+        loupeSizeFactor = parseFloat(loupeSizeSlider.value);
         loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
 
         // スライダー/トグルの初期値をadjustmentsオブジェクトとUIに反映
