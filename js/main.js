@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
     };
     let isLoupeEnabled = false;
-    let zoomFactor = 3; // 初期値は min(1.5) 以上なので OK
-    let loupeSizeFactor = 1.5; // ★ 初期値を 1.5 に変更
+    let zoomFactor = 3;
+    let loupeSizeFactor = 2.0; // ★ 初期値を 2.0 に変更
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
@@ -743,9 +743,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 初期化 ---
     function init() {
-        // ★ ルーペサイズ初期値を修正
-        loupeSizeFactor = parseFloat(loupeSizeSlider.value); // HTMLのvalueを初期値とする
+        // ★ ルーペサイズ初期値を修正 (HTMLから取得)
+        loupeSizeFactor = parseFloat(loupeSizeSlider.value);
         loupeSizeValueSpan.textContent = loupeSizeFactor.toFixed(1);
+        zoomFactor = parseFloat(loupeZoomSlider.value);
+        loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
 
         // スライダー/トグルの初期値をadjustmentsオブジェクトとUIに反映
         Object.keys(adjustments).forEach(key => {
@@ -767,9 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             previewContainer.classList.add('loupe-disabled');
         }
 
-        zoomFactor = parseFloat(loupeZoomSlider.value); // HTMLのvalueを初期値とする
-        loupeZoomValueSpan.textContent = zoomFactor.toFixed(1);
-        // loupeSizeFactor は上で設定済み
+        // zoomFactor, loupeSizeFactor は上で設定済み
 
         displayLenses();
         selectLens(null);

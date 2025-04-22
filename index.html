@@ -38,15 +38,15 @@
                     <div class="loupe-drawer-content">
                         <div class="control-group">
                             <label for="loupe-zoom">倍率:</label>
-                            {/* ★ min を 1.5 に変更 */}
                             <input type="range" id="loupe-zoom" name="loupe-zoom" min="1.5" max="7" value="3" step="0.1">
                             <span class="value-display"><span id="loupe-zoom-value">3.0</span>x</span>
                         </div>
                         <div class="control-group">
                             <label for="loupe-size-factor">サイズ:</label>
-                            {/* ★ min を 1.5 に、value を 1.5 に変更 */}
-                            <input type="range" id="loupe-size-factor" name="loupe-size-factor" min="1.5" max="3" value="1.5" step="0.1">
-                            <span class="value-display"><span id="loupe-size-value">1.5</span>x</span> {/* ★ 初期表示も修正 */}
+                            {/* ★ value を 2.0 に変更 */}
+                            <input type="range" id="loupe-size-factor" name="loupe-size-factor" min="1.5" max="3" value="2.0" step="0.1">
+                            {/* ★ 初期表示も 2.0 に修正 */}
+                            <span class="value-display"><span id="loupe-size-value">2.0</span>x</span>
                         </div>
                     </div>
                 </div>

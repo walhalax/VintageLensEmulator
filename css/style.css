@@ -153,7 +153,7 @@ h2 {
     pointer-events: none;
     z-index: 10;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    background-origin: content-box; /* ★ 追加: 背景基準をコンテンツ領域に */
+    background-origin: content-box;
 }
 
 /* ルーペ調整コントロールのスタイル */
@@ -173,6 +173,7 @@ h2 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    width: fit-content; /* ★ 内容に合わせて幅を調整 */
 }
 
 /* ドロワーコンテンツ (デフォルト非表示) */
@@ -232,7 +233,7 @@ h2 {
 }
 
 /* トグルスイッチのスタイル */
-.loupe-toggle-group label { margin-right: 0.25rem; }
+.loupe-toggle-group label { margin-right: 0.25rem; } /* これは使われていない可能性 */
 .switch { position: relative; display: inline-block; width: 40px; height: 20px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
@@ -304,7 +305,6 @@ input:checked + .slider:before { transform: translateX(20px); }
 .lens-list {
     display: flex;
     gap: 1rem;
-    /* ★ padding を左右のみに変更 */
     padding: 0 1rem; /* 上下の padding を削除 */
     min-width: max-content;
 }
