@@ -26,7 +26,6 @@
                     <div id="loupe"></div>
                 </div>
                 <div class="loupe-controls">
-                    {/* ★ ルーペトグル */}
                     <div class="loupe-toggle-wrapper control-group">
                         <label for="loupe-toggle">ルーペ:</label>
                         <span class="toggle-label toggle-label-off">OFF</span>
@@ -36,7 +35,6 @@
                         </label>
                         <span class="toggle-label toggle-label-on">ON</span>
                     </div>
-                    {/* ★ 元画像表示トグルを追加 */}
                     <div class="original-image-toggle-wrapper control-group">
                         <label for="original-image-toggle">元画像表示:</label>
                         <span class="toggle-label toggle-label-off">OFF</span>
@@ -46,20 +44,15 @@
                         </label>
                         <span class="toggle-label toggle-label-on">ON</span>
                     </div>
-                    {/* ★ ルーペ詳細設定 */}
                     <div class="loupe-drawer-content">
                         <div class="control-group">
                             <label for="loupe-zoom">倍率:</label>
-                            {/* ★ min="1.1" value="1.2" max="3.0" に変更 */}
                             <input type="range" id="loupe-zoom" name="loupe-zoom" min="1.1" max="3.0" value="1.2" step="0.1">
-                            {/* ★ 初期表示を 1.2 に修正 */}
                             <span class="value-display"><span id="loupe-zoom-value">1.2</span>x</span>
                         </div>
                         <div class="control-group">
                             <label for="loupe-size-factor">サイズ:</label>
-                            {/* ★ value="2.5" max="5.0" に変更 (minは1.25のまま) */}
                             <input type="range" id="loupe-size-factor" name="loupe-size-factor" min="1.25" max="5.0" value="2.5" step="0.1">
-                            {/* ★ 初期表示を 2.5 に修正 */}
                             <span class="value-display"><span id="loupe-size-value">2.5</span>x</span>
                         </div>
                     </div>

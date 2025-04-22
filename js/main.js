@@ -9,8 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loupe = document.getElementById('loupe');
     const loupeControlsContainer = document.querySelector('.loupe-controls');
     const loupeToggle = document.getElementById('loupe-toggle');
-    const loupeToggleLabelOff = document.querySelector('.toggle-label-off');
-    const loupeToggleLabelOn = document.querySelector('.toggle-label-on');
+    const loupeToggleLabelOff = document.querySelector('.loupe-toggle-wrapper .toggle-label-off'); // より具体的に
+    const loupeToggleLabelOn = document.querySelector('.loupe-toggle-wrapper .toggle-label-on'); // より具体的に
+    // ★ 元画像表示トグル要素取得を追加
+    const originalImageToggle = document.getElementById('original-image-toggle');
+    // ★ セレクタ修正: 親要素のクラス名を指定
+    const originalImageToggleLabelOff = document.querySelector('.original-image-toggle-wrapper .toggle-label-off');
+    const originalImageToggleLabelOn = document.querySelector('.original-image-toggle-wrapper .toggle-label-on');
     const loupeZoomSlider = document.getElementById('loupe-zoom');
     const loupeZoomValueSpan = document.getElementById('loupe-zoom-value');
     const loupeSizeSlider = document.getElementById('loupe-size-factor');
@@ -45,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
     };
     let isLoupeEnabled = false;
+    let showOriginalImage = false; // ★ 元画像表示フラグ
     let zoomFactor = 1.2;
     let loupeSizeFactor = 2.5;
     let baseLoupeSize = 0;
@@ -83,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (e) => {
                 originalImageData = e.target.result;
                 currentImage = file;
-                adjustedImageDataUrl = null; // ★ 調整後データをリセット
+                adjustedImageDataUrl = null; // リセット
                 console.log("FileReader loaded.");
 
                 const img = new Image();
@@ -108,12 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     previewCanvas.width = previewWidth;
                     previewCanvas.height = previewHeight;
+                    // ★ 初期描画は元画像
                     previewCtx.drawImage(originalImageObject, 0, 0, previewWidth, previewHeight);
                     console.log("Initial image drawn to canvas.");
 
                     previewCanvas.style.display = 'block';
                     placeholderText.style.display = 'none';
-                    updateLoupeBackground(); // ★ ルーペ背景更新関数を呼ぶ
+                    updateLoupeBackground(); // ルーペ背景更新
 
                     requestAnimationFrame(() => {
                         console.log("Requesting initial updates after image load.");
@@ -160,20 +167,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // パラメータ調整 (スライダー) - change イベント (ルーペ背景更新用) ★追加
+    // パラメータ調整 (スライダー) - change イベント (ルーペ背景更新用)
     adjustmentControls.addEventListener('change', (event) => {
         const target = event.target;
         if (target.type === 'range') {
-            console.log("Slider change event triggered, updating loupe background."); // Debug
-            // applyPreviewAdjustments が完了して adjustedImageDataUrl が更新されるのを待つ必要があるが、
-            // 簡略化のため、ここでは debounce 後の applyPreviewAdjustments 完了を期待して背景更新を試みる
-            // (より確実にするには applyPreviewAdjustments 内で更新するか、Promiseを使う)
-            updateLoupeBackground();
-            // ルーペが表示されていれば位置も更新
-            if (loupe.style.display === 'block') {
-                updateLoupePosition(lastMousePos);
-                updateLoupeBackgroundSize(); // サイズも念のため更新
-            }
+            console.log("Slider change event triggered, updating loupe background.");
+            // debounce 完了後に実行されるように少し遅延させる
+            setTimeout(() => {
+                updateLoupeBackground();
+                if (loupe.style.display === 'block') {
+                    updateLoupePosition(lastMousePos);
+                    updateLoupeBackgroundSize();
+                }
+            }, PREVIEW_DEBOUNCE_TIME + 50);
         }
     });
 
@@ -208,14 +214,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isLoupeEnabled) {
             previewContainer.classList.remove('loupe-disabled');
-            // ルーペ有効時に最新の調整後画像を使うように試みる
-            updateLoupeBackground();
+            updateLoupeBackground(); // ルーペ有効時に背景更新
         } else {
             previewContainer.classList.add('loupe-disabled');
             clearTimeout(loupeTimer);
             loupe.style.display = 'none';
         }
     });
+
+    // ★ 元画像表示トグル イベントリスナー追加
+    if (originalImageToggle) {
+        originalImageToggle.addEventListener('change', (e) => {
+            showOriginalImage = e.target.checked;
+            console.log("Show original image toggled:", showOriginalImage);
+            // ラベルの太字切り替え (要素があれば)
+            if (originalImageToggleLabelOff && originalImageToggleLabelOn) {
+                originalImageToggleLabelOff.style.fontWeight = !showOriginalImage ? 'bold' : 'normal';
+                originalImageToggleLabelOn.style.fontWeight = showOriginalImage ? 'bold' : 'normal';
+            }
+            // プレビューとルーペを更新
+            applyPreviewAdjustments(); // プレビューを再描画
+            updateLoupeBackground(); // ルーペ背景を更新
+        });
+    }
+
 
     loupeSizeSlider.addEventListener('input', (e) => {
         loupeSizeFactor = parseFloat(e.target.value);
@@ -296,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.backgroundImage = 'none';
         originalImageData = null;
         originalImageObject = null;
-        adjustedImageDataUrl = null; // ★ リセット
+        adjustedImageDataUrl = null;
         currentImage = null;
         previewScale = 1.0;
         previewOffsetX = 0;
@@ -432,11 +454,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loupe.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
     }
 
-    // ★ ルーペ背景更新関数を追加
+    // ★ ルーペ背景更新関数を追加 ★ 元画像表示トグル対応
     function updateLoupeBackground() {
         if (!loupe) return;
-        // 調整後のデータがあればそれを、なければ元の画像データを使う
-        const imageUrl = adjustedImageDataUrl || originalImageData;
+        // 元画像表示がONなら元画像を、OFFなら調整後(あれば)を使う
+        const imageUrl = showOriginalImage ? originalImageData : (adjustedImageDataUrl || originalImageData);
         if (imageUrl) {
             loupe.style.backgroundImage = `url('${imageUrl}')`;
         } else {
@@ -445,13 +467,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // 調整をプレビュー画像に適用 (Canvas ベース) ★ 調整後データURL保存追加
+    // 調整をプレビュー画像に適用 (Canvas ベース) ★ 元画像表示トグル対応 & 調整後データURL保存追加
     function applyPreviewAdjustments() {
         if (!originalImageObject || !previewCtx) return;
 
         console.log("Applying adjustments to preview canvas...");
 
         previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+        // ★ 元画像表示がONなら調整せず元画像を描画
+        if (showOriginalImage) {
+            previewCtx.drawImage(originalImageObject, 0, 0, previewCanvas.width, previewCanvas.height);
+            adjustedImageDataUrl = null; // 調整後データは無効
+            console.log("Preview canvas updated with original image.");
+            return; // 調整処理をスキップ
+        }
+
+        // 元画像を描画 (調整処理のベース)
         previewCtx.drawImage(originalImageObject, 0, 0, previewCanvas.width, previewCanvas.height);
 
         const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
@@ -468,7 +500,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ★ 調整後の画像をData URLとして保存 (やや重い処理)
         try {
-            adjustedImageDataUrl = previewCanvas.toDataURL();
+            // PNG形式で画質を指定 (デフォルトは0.92)
+            adjustedImageDataUrl = previewCanvas.toDataURL('image/png');
             // console.log("Adjusted image data URL updated."); // Debug
         } catch (e) {
             console.error("Error creating Data URL from adjusted canvas:", e);
@@ -534,9 +567,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 画像保存処理 (Canvas使用版)
+    // 画像保存処理 (Canvas使用版) ★ 元画像フラグ対応
     function downloadImageWithAdjustments() {
-        // ... (変更なし) ...
         if (!originalImageObject) {
             alert("画像を読み込んでください。");
             return;
@@ -549,13 +581,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveCtx = saveCanvas.getContext('2d');
 
         try {
-            processCanvas(originalImageObject, saveCanvas, saveCtx);
+            // ★ 元画像表示がONの場合は調整しない
+            processCanvas(originalImageObject, saveCanvas, saveCtx, showOriginalImage);
 
             saveCanvas.toBlob((blob) => {
                 if (blob) {
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
-                    const filename = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") + "_adjusted.png" : "adjusted_image.png";
+                    // ★ ファイル名に "_original" を追加 (元画像保存時)
+                    const suffix = showOriginalImage ? "_original.png" : "_adjusted.png";
+                    const filename = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") + suffix : "image" + suffix;
                     link.download = filename;
                     document.body.appendChild(link);
                     link.click();
@@ -578,17 +613,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Canvas処理本体
-    function processCanvas(imgSource, canvas, ctx) {
-        // ... (変更なし) ...
+    // Canvas処理本体 ★ 元画像フラグ追加
+    function processCanvas(imgSource, canvas, ctx, saveOriginal = false) {
         canvas.width = imgSource.naturalWidth;
         canvas.height = imgSource.naturalHeight;
         ctx.drawImage(imgSource, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        applyPixelAdjustments(data, canvas.width, canvas.height, adjustments);
-        ctx.putImageData(imageData, 0, 0);
-        console.log("Canvas processed.");
+
+        // 元画像を保存する場合は調整をスキップ
+        if (!saveOriginal) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            applyPixelAdjustments(data, canvas.width, canvas.height, adjustments);
+            ctx.putImageData(imageData, 0, 0);
+            console.log("Canvas processed with adjustments.");
+        } else {
+            console.log("Canvas processed without adjustments (saving original).");
+        }
     }
 
     // --- RGB/HSL変換ヘルパー関数 ---
@@ -823,7 +863,14 @@ document.addEventListener('DOMContentLoaded', () => {
             previewContainer.classList.add('loupe-disabled');
         }
 
-        // zoomFactor, loupeSizeFactor は上で設定済み
+        // ★ 元画像表示トグルの初期化
+        if (originalImageToggle) {
+            originalImageToggle.checked = showOriginalImage;
+            if (originalImageToggleLabelOff && originalImageToggleLabelOn) {
+                originalImageToggleLabelOff.style.fontWeight = !showOriginalImage ? 'bold' : 'normal';
+                originalImageToggleLabelOn.style.fontWeight = showOriginalImage ? 'bold' : 'normal';
+            }
+        }
 
         displayLenses();
         selectLens(null);
