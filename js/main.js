@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const LIGHTWEIGHT_MAX_WIDTH = 1920;
     const LIGHTWEIGHT_MAX_HEIGHT = 1080;
     const LIGHTWEIGHT_JPEG_QUALITY = 0.8;
+    const HIGH_QUALITY_JPEG_QUALITY = 0.95; // ★ 高画質JPEG用
+    const FILESIZE_THRESHOLD = 10 * 1024 * 1024; // ★ 10MB
 
     // --- 状態管理 ---
     let currentImage = null;
@@ -41,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImageData = null; // Data URL of original image
     let originalImageObject = null; // Image object of original image
     let adjustedImageDataUrl = null; // Data URL of adjusted preview canvas
+    let isLargeFile = false; // ★ 元画像が10MB超かどうかのフラグ
     let previewScale = 1.0;
     let previewOffsetX = 0;
     let previewOffsetY = 0;
@@ -82,10 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- イベントリスナー ---
 
-    // 画像読み込み
+    // 画像読み込み ★ ファイルサイズチェック追加
     imageInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
+            isLargeFile = file.size > FILESIZE_THRESHOLD; // ★ ファイルサイズチェック
+            console.log(`File size: ${file.size} bytes, Is large: ${isLargeFile}`); // Debug
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 originalImageData = e.target.result;
@@ -158,12 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // confirm を2回使って3択を実現
-        const saveHigh = confirm("高画質 (PNG, 元解像度) で保存しますか？\n(キャンセルで低画質オプションへ)");
+        const saveHigh = confirm("高画質で保存しますか？\n(キャンセルで低画質オプションへ)");
 
         if (saveHigh) {
             downloadImageWithAdjustments('high'); // 高画質で保存
         } else {
-            const saveLow = confirm("低画質 (JPEG, 解像度制限) で保存しますか？");
+            const saveLow = confirm("低画質で保存しますか？");
             if (saveLow) {
                 downloadImageWithAdjustments('low'); // 低画質で保存
             } else {
@@ -340,6 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         originalImageObject = null;
         adjustedImageDataUrl = null;
         currentImage = null;
+        isLargeFile = false; // ★ リセット
         previewScale = 1.0;
         previewOffsetX = 0;
         previewOffsetY = 0;
@@ -597,16 +604,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let saveFormat = 'image/png';
         let quality = null;
-        let suffix = '_adjusted.png';
+        let suffix = '_high.png'; // デフォルトを高画質PNGに
         let targetWidth = originalImageObject.naturalWidth;
         let targetHeight = originalImageObject.naturalHeight;
+        let resize = false; // ★ リサイズフラグ
 
-        if (qualityOption === 'low') { // ★ 'low' に変更
+        if (qualityOption === 'low') {
             saveFormat = 'image/jpeg';
             quality = LIGHTWEIGHT_JPEG_QUALITY;
-            suffix = '_low.jpg'; // ★ 低画質用のサフィックス
+            suffix = '_low.jpg';
+            resize = true; // 低画質の場合はリサイズする
+            console.log(`Saving low quality...`);
+        } else if (qualityOption === 'high') {
+            if (isLargeFile) { // ★ 元画像が10MB超の場合
+                saveFormat = 'image/jpeg';
+                quality = HIGH_QUALITY_JPEG_QUALITY; // 高品質JPEG
+                suffix = '_high.jpg';
+                console.log(`Saving high quality (large file, JPEG): ${targetWidth}x${targetHeight}`);
+            } else {
+                // PNGのまま (quality は null)
+                console.log(`Saving high quality (PNG): ${targetWidth}x${targetHeight}`);
+            }
+        }
 
-            // 解像度制限
+        // ★ 低画質の場合のみリサイズ
+        if (resize) {
             let scale = 1.0;
             if (originalImageObject.naturalWidth > LIGHTWEIGHT_MAX_WIDTH) {
                 scale = LIGHTWEIGHT_MAX_WIDTH / originalImageObject.naturalWidth;
@@ -616,9 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             targetWidth = Math.round(originalImageObject.naturalWidth * scale);
             targetHeight = Math.round(originalImageObject.naturalHeight * scale);
-            console.log(`Saving low quality: ${targetWidth}x${targetHeight}`);
-        } else { // 'high' or other cases
-            console.log(`Saving high quality: ${targetWidth}x${targetHeight}`);
+            console.log(`Resizing to: ${targetWidth}x${targetHeight}`);
         }
 
 
@@ -632,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     link.href = URL.createObjectURL(blob);
                     const filenameBase = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") : "image";
                     // ★ 元画像表示ONの場合はサフィックスを変更
-                    const finalSuffix = showOriginalImage ? "_original" + (qualityOption === 'high' ? ".png" : ".jpg") : suffix;
+                    const finalSuffix = showOriginalImage ? "_original" + (saveFormat === 'image/png' ? ".png" : ".jpg") : suffix;
                     link.download = filenameBase + finalSuffix;
                     document.body.appendChild(link);
                     link.click();
