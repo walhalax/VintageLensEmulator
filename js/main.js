@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 画像保存 ★ 品質選択ロジック変更
+    // 画像保存 ★ 品質選択ロジック変更 (3択)
     saveButton.addEventListener('click', () => {
         if (!originalImageObject) {
             alert("画像を読み込んでください。");
@@ -161,11 +161,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveHigh = confirm("高画質 (PNG, 元解像度) で保存しますか？\n(キャンセルで低画質オプションへ)");
 
         if (saveHigh) {
-            downloadImageWithAdjustments(true); // 高画質で保存
+            downloadImageWithAdjustments('high'); // 高画質で保存
         } else {
             const saveLow = confirm("低画質 (JPEG, 解像度制限) で保存しますか？");
             if (saveLow) {
-                downloadImageWithAdjustments(false); // 低画質で保存
+                downloadImageWithAdjustments('low'); // 低画質で保存
             } else {
                 console.log("Image save cancelled."); // キャンセル
             }
@@ -588,9 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 画像保存処理 (Canvas使用版) ★ 品質選択ロジック変更
-    function downloadImageWithAdjustments(saveHighQuality) {
-        // saveHighQuality: true = 高画質(PNG), false = 低画質(JPEG)
-
+    function downloadImageWithAdjustments(qualityOption) { // 'high' or 'low'
         saveButton.disabled = true;
         saveButton.textContent = "処理中...";
 
@@ -603,10 +601,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let targetWidth = originalImageObject.naturalWidth;
         let targetHeight = originalImageObject.naturalHeight;
 
-        if (!saveHighQuality) {
+        if (qualityOption === 'low') { // ★ 'low' に変更
             saveFormat = 'image/jpeg';
             quality = LIGHTWEIGHT_JPEG_QUALITY;
-            suffix = '_low.jpg'; // 低画質用のサフィックス
+            suffix = '_low.jpg'; // ★ 低画質用のサフィックス
 
             // 解像度制限
             let scale = 1.0;
@@ -619,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetWidth = Math.round(originalImageObject.naturalWidth * scale);
             targetHeight = Math.round(originalImageObject.naturalHeight * scale);
             console.log(`Saving low quality: ${targetWidth}x${targetHeight}`);
-        } else {
+        } else { // 'high' or other cases
             console.log(`Saving high quality: ${targetWidth}x${targetHeight}`);
         }
 
@@ -634,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     link.href = URL.createObjectURL(blob);
                     const filenameBase = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") : "image";
                     // ★ 元画像表示ONの場合はサフィックスを変更
-                    const finalSuffix = showOriginalImage ? "_original" + (saveHighQuality ? ".png" : ".jpg") : suffix;
+                    const finalSuffix = showOriginalImage ? "_original" + (qualityOption === 'high' ? ".png" : ".jpg") : suffix;
                     link.download = filenameBase + finalSuffix;
                     document.body.appendChild(link);
                     link.click();
@@ -873,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // --- ヴィネット ★ 効果量を調整 (1.125 -> 0.84375) ---
+            // --- ヴィネット ★ 効果量を調整 (0.84375) ---
             if (vignetteAmount > 0) {
                 const dx = x - centerX;
                 const dy = y - centerY;
