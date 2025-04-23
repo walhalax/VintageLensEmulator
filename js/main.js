@@ -9,11 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const loupe = document.getElementById('loupe');
     const loupeControlsContainer = document.querySelector('.loupe-controls');
     const loupeToggle = document.getElementById('loupe-toggle');
-    const loupeToggleLabelOff = document.querySelector('.loupe-toggle-wrapper .toggle-label-off'); // より具体的に
-    const loupeToggleLabelOn = document.querySelector('.loupe-toggle-wrapper .toggle-label-on'); // より具体的に
+    const loupeToggleLabelOff = document.querySelector('.loupe-toggle-wrapper .toggle-label-off');
+    const loupeToggleLabelOn = document.querySelector('.loupe-toggle-wrapper .toggle-label-on');
     // ★ 元画像表示トグル要素取得を追加
     const originalImageToggle = document.getElementById('original-image-toggle');
-    // ★ セレクタ修正: 親要素のクラス名を指定
     const originalImageToggleLabelOff = document.querySelector('.original-image-toggle-wrapper .toggle-label-off');
     const originalImageToggleLabelOn = document.querySelector('.original-image-toggle-wrapper .toggle-label-on');
     const loupeZoomSlider = document.getElementById('loupe-zoom');
@@ -47,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewDisplayHeight = 0;
     let adjustments = {
         brightness: 100, contrast: 100, saturation: 100, sharpness: 0,
-        exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0,
+        exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0, vignette: 0 // ★ vignette 追加
     };
     let isLoupeEnabled = false;
     let showOriginalImage = false; // ★ 元画像表示フラグ
@@ -114,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     previewCanvas.width = previewWidth;
                     previewCanvas.height = previewHeight;
-                    // ★ 初期描画は元画像
                     previewCtx.drawImage(originalImageObject, 0, 0, previewWidth, previewHeight);
                     console.log("Initial image drawn to canvas.");
 
@@ -718,9 +716,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ピクセルデータに調整を適用する関数
+    // ピクセルデータに調整を適用する関数 ★ ヴィネット追加
     function applyPixelAdjustments(data, width, height, adj) {
-        // ... (実装済み、ミストはハイライト適用) ...
         console.log("Applying pixel adjustments...", adj);
         const brightnessFactor = adj.brightness / 100;
         const contrastFactor = adj.contrast / 100;
@@ -730,6 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tintAmount = adj.tint / 100;
         const mistAmount = adj.mist / 100;
         const sharpnessAmount = adj.sharpness / 100;
+        const vignetteAmount = adj.vignette / 100; // 0-1
 
         const targetRgb = kelvinToRgb(adj.temperature);
         const baseRgb = kelvinToRgb(6500);
@@ -740,17 +738,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const srcData = sharpnessAmount > 0 ? new Uint8ClampedArray(data) : null;
         const step = 4;
         const widthStep = width * step;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        // 画像の対角線の半分の長さを基準にする (0-1の距離を計算するため)
+        const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
 
         for (let i = 0; i < data.length; i += step) {
             let r = data[i];
             let g = data[i + 1];
             let b = data[i + 2];
+            const x = (i / step) % width;
+            const y = Math.floor((i / step) / width);
 
             // --- シャープネス (簡易版) ---
             if (sharpnessAmount > 0 && srcData) {
-                const x = (i / step) % width;
-                const y = Math.floor((i / step) / width);
-
                 if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
                     const centerIndex = i;
                     const topIndex = i - widthStep;
@@ -825,6 +826,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     b = b * (1 - mixFactor) + 255 * mixFactor;
                 }
             }
+
+            // --- ヴィネット ---
+            if (vignetteAmount > 0) {
+                // 中心からの距離を計算 (0-1の範囲に正規化)
+                const dx = x - centerX;
+                const dy = y - centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
+                // 距離に応じて明るさを減衰 (距離が遠いほど暗く)
+                // 係数 1.5 は効果の強さ、調整可能
+                const vignetteFactor = 1.0 - dist * vignetteAmount * 1.5;
+                r *= vignetteFactor;
+                g *= vignetteFactor;
+                b *= vignetteFactor;
+            }
+
 
             // --- クリッピングして書き戻し ---
             data[i] = Math.max(0, Math.min(255, r));
