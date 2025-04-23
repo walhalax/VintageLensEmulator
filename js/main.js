@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const PREVIEW_DEBOUNCE_TIME = 150;
     const LOUPE_DELAY = 1000;
     const MIST_HIGHLIGHT_THRESHOLD = 200;
+    const LIGHTWEIGHT_MAX_WIDTH = 1920; // ★ 軽量保存時の最大幅
+    const LIGHTWEIGHT_MAX_HEIGHT = 1080; // ★ 軽量保存時の最大高さ
+    const LIGHTWEIGHT_JPEG_QUALITY = 0.8; // ★ 軽量保存時のJPEG品質
 
     // --- 状態管理 ---
     let currentImage = null;
@@ -49,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let isLoupeEnabled = false;
     let showOriginalImage = false;
-    let zoomFactor = 1.2; // ★ 初期値を 1.2 に変更
+    let zoomFactor = 1.0; // ★ 初期値を 1.0 に変更
     let loupeSizeFactor = 2.0; // ★ 初期値を 2.0 に変更
     let baseLoupeSize = 0;
     let loupeSize = 0;
@@ -147,8 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 画像保存
-    saveButton.addEventListener('click', downloadImageWithAdjustments);
+    // 画像保存 ★ 品質選択ロジック追加
+    saveButton.addEventListener('click', () => {
+        if (!originalImageObject) {
+            alert("画像を読み込んでください。");
+            return;
+        }
+
+        // confirm を使って簡易的に選択
+        const saveHighQuality = confirm("高画質 (PNG, 元解像度) で保存しますか？\nキャンセルすると軽量 (JPEG, 解像度制限) で保存します。");
+
+        downloadImageWithAdjustments(saveHighQuality);
+    });
+
 
     // パラメータ調整 (スライダー) - input イベント (プレビュー更新用)
     adjustmentControls.addEventListener('input', (event) => {
@@ -564,9 +578,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 画像保存処理 (Canvas使用版) ★ 元画像フラグ対応
-    function downloadImageWithAdjustments() {
+    // 画像保存処理 (Canvas使用版) ★ 品質選択ロジック追加
+    function downloadImageWithAdjustments(saveHighQuality) {
         if (!originalImageObject) {
+            // この関数はボタンクリックから直接呼ばれなくなったので、
+            // このチェックは不要かもしれないが念のため残す
             alert("画像を読み込んでください。");
             return;
         }
@@ -577,18 +593,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveCanvas = document.createElement('canvas');
         const saveCtx = saveCanvas.getContext('2d');
 
+        let saveFormat = 'image/png';
+        let quality = null;
+        let suffix = '_adjusted.png';
+        let targetWidth = originalImageObject.naturalWidth;
+        let targetHeight = originalImageObject.naturalHeight;
+
+        if (!saveHighQuality) {
+            saveFormat = 'image/jpeg';
+            quality = LIGHTWEIGHT_JPEG_QUALITY;
+            suffix = '_lightweight.jpg';
+
+            // 解像度制限
+            let scale = 1.0;
+            if (originalImageObject.naturalWidth > LIGHTWEIGHT_MAX_WIDTH) {
+                scale = LIGHTWEIGHT_MAX_WIDTH / originalImageObject.naturalWidth;
+            }
+            if (originalImageObject.naturalHeight * scale > LIGHTWEIGHT_MAX_HEIGHT) {
+                scale = LIGHTWEIGHT_MAX_HEIGHT / originalImageObject.naturalHeight;
+            }
+            targetWidth = Math.round(originalImageObject.naturalWidth * scale);
+            targetHeight = Math.round(originalImageObject.naturalHeight * scale);
+            console.log(`Saving lightweight: ${targetWidth}x${targetHeight}`);
+        } else {
+            console.log(`Saving high quality: ${targetWidth}x${targetHeight}`);
+        }
+
+
         try {
-            // ★ 元画像表示がONの場合は調整しない
-            processCanvas(originalImageObject, saveCanvas, saveCtx, showOriginalImage);
+            // ★ 解像度を指定してCanvas処理
+            processCanvas(originalImageObject, saveCanvas, saveCtx, showOriginalImage, targetWidth, targetHeight);
 
             saveCanvas.toBlob((blob) => {
                 if (blob) {
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
-                    // ★ ファイル名に "_original" を追加 (元画像保存時)
-                    const suffix = showOriginalImage ? "_original.png" : "_adjusted.png";
-                    const filename = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") + suffix : "image" + suffix;
-                    link.download = filename;
+                    const filenameBase = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") : "image";
+                    // ★ 元画像表示ONの場合はサフィックスを変更
+                    const finalSuffix = showOriginalImage ? "_original" + (saveHighQuality ? ".png" : ".jpg") : suffix;
+                    link.download = filenameBase + finalSuffix;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -600,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 saveButton.disabled = false;
                 saveButton.textContent = "画像保存";
-            }, 'image/png');
+            }, saveFormat, quality); // ★ 形式と品質を指定
 
         } catch (error) {
             console.error("Error processing or downloading image:", error);
@@ -610,11 +653,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Canvas処理本体 ★ 元画像フラグ追加
-    function processCanvas(imgSource, canvas, ctx, saveOriginal = false) {
-        canvas.width = imgSource.naturalWidth;
-        canvas.height = imgSource.naturalHeight;
-        ctx.drawImage(imgSource, 0, 0);
+    // Canvas処理本体 ★ 出力解像度引数追加
+    function processCanvas(imgSource, canvas, ctx, saveOriginal = false, targetWidth, targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        // ★ 指定された解像度で描画
+        ctx.drawImage(imgSource, 0, 0, targetWidth, targetHeight);
 
         // 元画像を保存する場合は調整をスキップ
         if (!saveOriginal) {
@@ -715,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ピクセルデータに調整を適用する関数 ★ ヴィネット追加
+    // ピクセルデータに調整を適用する関数 ★ ヴィネット調整
     function applyPixelAdjustments(data, width, height, adj) {
         console.log("Applying pixel adjustments...", adj);
         const brightnessFactor = adj.brightness / 100;
@@ -825,12 +869,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // --- ヴィネット ★ 効果量を調整 (1.5 -> 1.125) ---
+            // --- ヴィネット ★ 効果量を調整 (1.125 -> 0.84375) ---
             if (vignetteAmount > 0) {
                 const dx = x - centerX;
                 const dy = y - centerY;
                 const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
-                const vignetteFactor = 1.0 - dist * vignetteAmount * 1.125; // ★ 係数を変更
+                const vignetteFactor = 1.0 - dist * vignetteAmount * 0.84375; // ★ 係数を変更 (1.5 * 0.75 = 1.125 ではなく、元の1.5から75%なので 1.5*0.75=1.125。さらに75%なら 1.125*0.75=0.84375)
                 r *= vignetteFactor;
                 g *= vignetteFactor;
                 b *= vignetteFactor;
