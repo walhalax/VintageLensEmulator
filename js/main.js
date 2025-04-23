@@ -31,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const PREVIEW_DEBOUNCE_TIME = 150;
     const LOUPE_DELAY = 1000;
     const MIST_HIGHLIGHT_THRESHOLD = 200;
-    const LIGHTWEIGHT_MAX_WIDTH = 1920; // ★ 軽量保存時の最大幅
-    const LIGHTWEIGHT_MAX_HEIGHT = 1080; // ★ 軽量保存時の最大高さ
-    const LIGHTWEIGHT_JPEG_QUALITY = 0.8; // ★ 軽量保存時のJPEG品質
+    const LIGHTWEIGHT_MAX_WIDTH = 1920;
+    const LIGHTWEIGHT_MAX_HEIGHT = 1080;
+    const LIGHTWEIGHT_JPEG_QUALITY = 0.8;
 
     // --- 状態管理 ---
     let currentImage = null;
@@ -150,17 +150,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 画像保存 ★ 品質選択ロジック追加
+    // 画像保存 ★ 品質選択ロジック変更
     saveButton.addEventListener('click', () => {
         if (!originalImageObject) {
             alert("画像を読み込んでください。");
             return;
         }
 
-        // confirm を使って簡易的に選択
-        const saveHighQuality = confirm("高画質 (PNG, 元解像度) で保存しますか？\nキャンセルすると軽量 (JPEG, 解像度制限) で保存します。");
+        // confirm を2回使って3択を実現
+        const saveHigh = confirm("高画質 (PNG, 元解像度) で保存しますか？\n(キャンセルで低画質オプションへ)");
 
-        downloadImageWithAdjustments(saveHighQuality);
+        if (saveHigh) {
+            downloadImageWithAdjustments(true); // 高画質で保存
+        } else {
+            const saveLow = confirm("低画質 (JPEG, 解像度制限) で保存しますか？");
+            if (saveLow) {
+                downloadImageWithAdjustments(false); // 低画質で保存
+            } else {
+                console.log("Image save cancelled."); // キャンセル
+            }
+        }
     });
 
 
@@ -578,14 +587,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 画像保存処理 (Canvas使用版) ★ 品質選択ロジック追加
+    // 画像保存処理 (Canvas使用版) ★ 品質選択ロジック変更
     function downloadImageWithAdjustments(saveHighQuality) {
-        if (!originalImageObject) {
-            // この関数はボタンクリックから直接呼ばれなくなったので、
-            // このチェックは不要かもしれないが念のため残す
-            alert("画像を読み込んでください。");
-            return;
-        }
+        // saveHighQuality: true = 高画質(PNG), false = 低画質(JPEG)
 
         saveButton.disabled = true;
         saveButton.textContent = "処理中...";
@@ -602,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!saveHighQuality) {
             saveFormat = 'image/jpeg';
             quality = LIGHTWEIGHT_JPEG_QUALITY;
-            suffix = '_lightweight.jpg';
+            suffix = '_low.jpg'; // 低画質用のサフィックス
 
             // 解像度制限
             let scale = 1.0;
@@ -614,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             targetWidth = Math.round(originalImageObject.naturalWidth * scale);
             targetHeight = Math.round(originalImageObject.naturalHeight * scale);
-            console.log(`Saving lightweight: ${targetWidth}x${targetHeight}`);
+            console.log(`Saving low quality: ${targetWidth}x${targetHeight}`);
         } else {
             console.log(`Saving high quality: ${targetWidth}x${targetHeight}`);
         }
@@ -874,7 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dx = x - centerX;
                 const dy = y - centerY;
                 const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
-                const vignetteFactor = 1.0 - dist * vignetteAmount * 0.84375; // ★ 係数を変更 (1.5 * 0.75 = 1.125 ではなく、元の1.5から75%なので 1.5*0.75=1.125。さらに75%なら 1.125*0.75=0.84375)
+                const vignetteFactor = 1.0 - dist * vignetteAmount * 0.84375; // ★ 係数を変更
                 r *= vignetteFactor;
                 g *= vignetteFactor;
                 b *= vignetteFactor;
