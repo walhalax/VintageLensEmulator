@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const LIGHTWEIGHT_MAX_WIDTH = 1920;
     const LIGHTWEIGHT_MAX_HEIGHT = 1080;
     const LIGHTWEIGHT_JPEG_QUALITY = 0.8;
-    const HIGH_QUALITY_JPEG_QUALITY = 0.95; // ★ 高画質JPEG用
-    const FILESIZE_THRESHOLD = 10 * 1024 * 1024; // ★ 10MB
+    const HIGH_QUALITY_JPEG_QUALITY = 0.95; // 高画質JPEG用
+    const FILESIZE_THRESHOLD = 10 * 1024 * 1024; // 10MB
 
     // --- 状態管理 ---
     let currentImage = null;
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImageData = null; // Data URL of original image
     let originalImageObject = null; // Image object of original image
     let adjustedImageDataUrl = null; // Data URL of adjusted preview canvas
-    let isLargeFile = false; // ★ 元画像が10MB超かどうかのフラグ
+    let isLargeFile = false; // 元画像が10MB超かどうかのフラグ (画像読み込み時に設定)
     let previewScale = 1.0;
     let previewOffsetX = 0;
     let previewOffsetY = 0;
@@ -55,8 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let isLoupeEnabled = false;
     let showOriginalImage = false;
-    let zoomFactor = 1.0; // ★ 初期値を 1.0 に変更
-    let loupeSizeFactor = 2.0; // ★ 初期値を 2.0 に変更
+    let zoomFactor = 1.0;
+    let loupeSizeFactor = 2.0;
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = event.target.files[0];
         if (file && file.type.startsWith('image/')) {
             isLargeFile = file.size > FILESIZE_THRESHOLD; // ★ ファイルサイズチェック
-            console.log(`File size: ${file.size} bytes, Is large: ${isLargeFile}`); // Debug
+            console.log(`File size: ${file.size} bytes, Is large: ${isLargeFile}`);
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -604,30 +604,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let saveFormat = 'image/png';
         let quality = null;
-        let suffix = '_high.png'; // デフォルトを高画質PNGに
+        let suffix = '_high.png';
         let targetWidth = originalImageObject.naturalWidth;
         let targetHeight = originalImageObject.naturalHeight;
-        let resize = false; // ★ リサイズフラグ
+        let resize = false;
 
         if (qualityOption === 'low') {
             saveFormat = 'image/jpeg';
             quality = LIGHTWEIGHT_JPEG_QUALITY;
             suffix = '_low.jpg';
-            resize = true; // 低画質の場合はリサイズする
+            resize = true;
             console.log(`Saving low quality...`);
         } else if (qualityOption === 'high') {
-            if (isLargeFile) { // ★ 元画像が10MB超の場合
-                saveFormat = 'image/jpeg';
-                quality = HIGH_QUALITY_JPEG_QUALITY; // 高品質JPEG
-                suffix = '_high.jpg';
-                console.log(`Saving high quality (large file, JPEG): ${targetWidth}x${targetHeight}`);
-            } else {
-                // PNGのまま (quality は null)
-                console.log(`Saving high quality (PNG): ${targetWidth}x${targetHeight}`);
-            }
+            // 高画質の場合、まずPNGで試行し、サイズが大きければJPEGにフォールバック
+            // この処理は toBlob のコールバック内で行う
+            console.log(`Saving high quality (will check size)...`);
         }
 
-        // ★ 低画質の場合のみリサイズ
+        // 低画質の場合のみリサイズ
         if (resize) {
             let scale = 1.0;
             if (originalImageObject.naturalWidth > LIGHTWEIGHT_MAX_WIDTH) {
@@ -643,29 +637,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         try {
-            // ★ 解像度を指定してCanvas処理
+            // ★ 解像度を指定してCanvas処理 (高画質時は元解像度)
             processCanvas(originalImageObject, saveCanvas, saveCtx, showOriginalImage, targetWidth, targetHeight);
 
-            saveCanvas.toBlob((blob) => {
-                if (blob) {
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    const filenameBase = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") : "image";
-                    // ★ 元画像表示ONの場合はサフィックスを変更
-                    const finalSuffix = showOriginalImage ? "_original" + (saveFormat === 'image/png' ? ".png" : ".jpg") : suffix;
-                    link.download = filenameBase + finalSuffix;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(link.href);
-                    console.log("Image downloaded successfully.");
-                } else {
-                    alert("画像のBlob生成に失敗しました。");
-                    console.error("Failed to create blob from canvas.");
-                }
-                saveButton.disabled = false;
-                saveButton.textContent = "画像保存";
-            }, saveFormat, quality); // ★ 形式と品質を指定
+            const filenameBase = currentImage ? currentImage.name.replace(/\.[^/.]+$/, "") : "image";
+
+            // ★ toBlob を非同期的に処理し、ファイルサイズによって形式を決定
+            if (qualityOption === 'high' && !showOriginalImage) {
+                saveCanvas.toBlob((pngBlob) => {
+                    if (!pngBlob) {
+                        alert("画像のBlob生成に失敗しました (PNG)。");
+                        console.error("Failed to create PNG blob from canvas.");
+                        saveButton.disabled = false;
+                        saveButton.textContent = "画像保存";
+                        return;
+                    }
+
+                    if (pngBlob.size > FILESIZE_THRESHOLD) {
+                        console.log(`PNG size (${pngBlob.size} bytes) exceeds threshold. Converting to high quality JPEG.`);
+                        saveCanvas.toBlob((jpegBlob) => {
+                            if (!jpegBlob) {
+                                alert("画像のBlob生成に失敗しました (JPEG)。");
+                                console.error("Failed to create JPEG blob from canvas.");
+                            } else {
+                                downloadBlob(jpegBlob, filenameBase + "_high.jpg");
+                            }
+                            saveButton.disabled = false;
+                            saveButton.textContent = "画像保存";
+                        }, 'image/jpeg', HIGH_QUALITY_JPEG_QUALITY);
+                    } else {
+                        console.log(`PNG size (${pngBlob.size} bytes) is within threshold.`);
+                        downloadBlob(pngBlob, filenameBase + "_high.png");
+                        saveButton.disabled = false;
+                        saveButton.textContent = "画像保存";
+                    }
+                }, 'image/png');
+            } else { // 低画質 または 元画像保存 の場合
+                const finalSuffix = showOriginalImage ? "_original" + (qualityOption === 'high' ? ".png" : ".jpg") : suffix;
+                saveCanvas.toBlob((blob) => {
+                    if (blob) {
+                        downloadBlob(blob, filenameBase + finalSuffix);
+                    } else {
+                        alert("画像のBlob生成に失敗しました。");
+                        console.error("Failed to create blob from canvas.");
+                    }
+                    saveButton.disabled = false;
+                    saveButton.textContent = "画像保存";
+                }, saveFormat, quality);
+            }
 
         } catch (error) {
             console.error("Error processing or downloading image:", error);
@@ -674,6 +693,19 @@ document.addEventListener('DOMContentLoaded', () => {
             saveButton.textContent = "画像保存";
         }
     }
+
+    // ★ Blobダウンロード用のヘルパー関数
+    function downloadBlob(blob, filename) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        console.log("Image downloaded successfully:", filename);
+    }
+
 
     // Canvas処理本体 ★ 出力解像度引数追加
     function processCanvas(imgSource, canvas, ctx, saveOriginal = false, targetWidth, targetHeight) {
