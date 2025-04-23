@@ -47,16 +47,12 @@
                     <div class="loupe-drawer-content">
                         <div class="control-group">
                             <label for="loupe-zoom">倍率:</label>
-                            {/* ★ min="1.1" value="1.2" max="3.0" に変更 */}
                             <input type="range" id="loupe-zoom" name="loupe-zoom" min="1.1" max="3.0" value="1.2" step="0.1">
-                            {/* ★ 初期表示を 1.2 に修正 */}
                             <span class="value-display"><span id="loupe-zoom-value">1.2</span>x</span>
                         </div>
                         <div class="control-group">
                             <label for="loupe-size-factor">サイズ:</label>
-                            {/* ★ value="2.5" max="5.0" に変更 (minは1.25のまま) */}
                             <input type="range" id="loupe-size-factor" name="loupe-size-factor" min="1.25" max="5.0" value="2.5" step="0.1">
-                            {/* ★ 初期表示を 2.5 に修正 */}
                             <span class="value-display"><span id="loupe-size-value">2.5</span>x</span>
                         </div>
                     </div>
@@ -111,7 +107,6 @@
                         <input type="range" id="mist" name="mist" min="0" max="100" value="0">
                         <span class="value-display"><span class="value-number">0</span>%</span>
                     </div>
-                    {/* ★ ヴィネット項目を追加 */}
                     <div class="control-group">
                         <label for="vignette">ヴィネット:</label>
                         <input type="range" id="vignette" name="vignette" min="0" max="100" value="0">

@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loupeToggle = document.getElementById('loupe-toggle');
     const loupeToggleLabelOff = document.querySelector('.loupe-toggle-wrapper .toggle-label-off');
     const loupeToggleLabelOn = document.querySelector('.loupe-toggle-wrapper .toggle-label-on');
-    // ★ 元画像表示トグル要素取得を追加
     const originalImageToggle = document.getElementById('original-image-toggle');
     const originalImageToggleLabelOff = document.querySelector('.original-image-toggle-wrapper .toggle-label-off');
     const originalImageToggleLabelOn = document.querySelector('.original-image-toggle-wrapper .toggle-label-on');
@@ -38,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentLens = null;
     let originalImageData = null; // Data URL of original image
     let originalImageObject = null; // Image object of original image
-    let adjustedImageDataUrl = null; // ★ Data URL of adjusted preview canvas
+    let adjustedImageDataUrl = null; // Data URL of adjusted preview canvas
     let previewScale = 1.0;
     let previewOffsetX = 0;
     let previewOffsetY = 0;
@@ -46,12 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewDisplayHeight = 0;
     let adjustments = {
         brightness: 100, contrast: 100, saturation: 100, sharpness: 0,
-        exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0, vignette: 0 // ★ vignette 追加
+        exposure: 0, grain: 0, temperature: 6500, tint: 0, mist: 0, vignette: 0
     };
     let isLoupeEnabled = false;
-    let showOriginalImage = false; // ★ 元画像表示フラグ
-    let zoomFactor = 1.2;
-    let loupeSizeFactor = 2.5;
+    let showOriginalImage = false;
+    let zoomFactor = 1.2; // ★ 初期値を 1.2 に変更
+    let loupeSizeFactor = 2.0; // ★ 初期値を 2.0 に変更
     let baseLoupeSize = 0;
     let loupeSize = 0;
     let loupeTimer = null;
@@ -740,7 +739,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const widthStep = width * step;
         const centerX = width / 2;
         const centerY = height / 2;
-        // 画像の対角線の半分の長さを基準にする (0-1の距離を計算するため)
         const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
 
         for (let i = 0; i < data.length; i += step) {
@@ -827,15 +825,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // --- ヴィネット ---
+            // --- ヴィネット ★ 効果量を調整 (1.5 -> 1.125) ---
             if (vignetteAmount > 0) {
-                // 中心からの距離を計算 (0-1の範囲に正規化)
                 const dx = x - centerX;
                 const dy = y - centerY;
                 const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
-                // 距離に応じて明るさを減衰 (距離が遠いほど暗く)
-                // 係数 1.5 は効果の強さ、調整可能
-                const vignetteFactor = 1.0 - dist * vignetteAmount * 1.5;
+                const vignetteFactor = 1.0 - dist * vignetteAmount * 1.125; // ★ 係数を変更
                 r *= vignetteFactor;
                 g *= vignetteFactor;
                 b *= vignetteFactor;
